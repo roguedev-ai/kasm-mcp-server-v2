@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-REPO_URL="https://github.com/roguedev-ai/kasm-mcp-server.git"
+REPO_URL="https://github.com/roguedev-ai/kasm-mcp-server-v2.git"
 INSTALL_DIR="/opt/kasm-mcp-server"
 SERVICE_NAME="kasm-mcp-server"
 SERVICE_USER="mcp-server"
