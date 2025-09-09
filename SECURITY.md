@@ -296,7 +296,7 @@ tmpfs:
 ```yaml
 # docker-compose.yml security settings
 services:
-  kasm-mcp-server:
+  kasm-mcp-server-v2:
     # Resource limits
     deploy:
       resources:

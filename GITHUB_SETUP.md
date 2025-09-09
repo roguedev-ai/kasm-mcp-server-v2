@@ -5,7 +5,7 @@
 1. Go to https://github.com/new or click the "+" icon in GitHub and select "New repository"
 
 2. Configure the repository:
-   - **Repository name**: `kasm-mcp-server`
+   - **Repository name**: `kasm-mcp-server-v2`
    - **Description**: "Model Context Protocol (MCP) server for Kasm Workspaces automation - enables AI agents to manage containerized desktop infrastructure"
    - **Visibility**: Choose Public or Private based on your preference
    - **DO NOT** initialize with README, .gitignore, or license (we already have these)
@@ -17,10 +17,10 @@
 After creating the repository on GitHub, run these commands in your terminal:
 
 ```bash
-cd projects/kasm-mcp-server
+cd projects/kasm-mcp-server-v2
 
 # Add the remote repository (replace YOUR_USERNAME with your GitHub username)
-git remote add origin https://github.com/YOUR_USERNAME/kasm-mcp-server.git
+git remote add origin https://github.com/YOUR_USERNAME/kasm-mcp-server-v2.git
 
 # Push the code to GitHub
 git push -u origin main
@@ -31,16 +31,16 @@ git push -u origin main
 If you have GitHub CLI installed, you can create the repository directly:
 
 ```bash
-cd projects/kasm-mcp-server
+cd projects/kasm-mcp-server-v2
 
 # Create the repository and push
-gh repo create kasm-mcp-server --public --source=. --remote=origin --push
+gh repo create kasm-mcp-server-v2 --public --source=. --remote=origin --push
 ```
 
 ## Verifying the Setup
 
 After pushing, your repository should be available at:
-`https://github.com/YOUR_USERNAME/kasm-mcp-server`
+`https://github.com/YOUR_USERNAME/kasm-mcp-server-v2`
 
 ## Updating the Install Script
 
@@ -48,7 +48,7 @@ Once the repository is created, update the `install.sh` script to use your repos
 
 1. Edit `install.sh`
 2. Find the line with `REPO_URL`
-3. Update it to: `REPO_URL="https://github.com/YOUR_USERNAME/kasm-mcp-server.git"`
+3. Update it to: `REPO_URL="https://github.com/YOUR_USERNAME/kasm-mcp-server-v2.git"`
 
 ## For MCP Tools Listing
 

@@ -9,14 +9,14 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 setup(
-    name="kasm-mcp-server",
+    name="kasm-mcp-server-v2",
     version="2.0.0",
     author="RogueDev AI",
     author_email="contact@roguedev.ai",
     description="Model Context Protocol server for Kasm Workspaces integration",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/roguedev-ai/kasm-mcp-server",
+    url="https://github.com/roguedev-ai/kasm-mcp-server-v2",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -33,7 +33,7 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "kasm-mcp-server=src.server:main",
+            "kasm-mcp-server-v2=src.server:main",
         ],
     },
     package_data={

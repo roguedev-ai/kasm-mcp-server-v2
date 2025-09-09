@@ -43,7 +43,7 @@ class KasmMCPServer:
     
     def __init__(self):
         """Initialize the MCP server."""
-        self.server = Server("kasm-mcp-server")
+        self.server = Server("kasm-mcp-server-v2")
         
         # Load configuration from environment
         self.kasm_api_url = os.getenv("KASM_API_URL")
@@ -163,7 +163,7 @@ class KasmMCPServer:
         # Run the server using stdio transport
         async with stdio_server() as (read_stream, write_stream):
             init_options = InitializationOptions(
-                server_name="kasm-mcp-server",
+                server_name="kasm-mcp-server-v2",
                 server_version="2.0.0",
                 capabilities=self.server.get_capabilities(
                     notification_options=NotificationOptions(),

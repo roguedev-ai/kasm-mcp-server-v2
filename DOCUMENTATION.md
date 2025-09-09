@@ -64,8 +64,8 @@ The Kasm MCP Server V2 is a Model Context Protocol (MCP) server that provides pr
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/roguedev-ai/kasm-mcp-server.git
-cd kasm-mcp-server
+git clone https://github.com/roguedev-ai/kasm-mcp-server-v2.git
+cd kasm-mcp-server-v2
 ```
 
 2. Configure environment:
@@ -84,7 +84,7 @@ docker-compose up -d
 For automated deployment on a remote server:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/roguedev-ai/kasm-mcp-server/main/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/roguedev-ai/kasm-mcp-server-v2/master/install.sh | sudo bash
 ```
 
 ### Manual Installation
@@ -320,7 +320,7 @@ All Kasm API calls use SHA256-based authentication:
 ### Common Issues
 
 1. **Connection Refused**
-   - Check if server is running: `systemctl status kasm-mcp-server`
+   - Check if server is running: `systemctl status kasm-mcp-server-v2`
    - Verify port is open: `netstat -tlnp | grep 8080`
    - Check firewall rules
 
@@ -358,7 +358,7 @@ curl http://localhost:8080/health
 
 ### Project Structure
 ```
-kasm-mcp-server/
+kasm-mcp-server-v2/
 ├── src/
 │   ├── __init__.py
 │   ├── __main__.py
@@ -423,6 +423,6 @@ MIT License - See LICENSE file for details.
 
 ## Support
 
-- GitHub Issues: https://github.com/roguedev-ai/kasm-mcp-server/issues
+- GitHub Issues: https://github.com/roguedev-ai/kasm-mcp-server-v2/issues
 - Documentation: This file
 - MCP Specification: https://modelcontextprotocol.io

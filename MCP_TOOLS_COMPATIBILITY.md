@@ -33,7 +33,7 @@ Updated all import statements across the codebase:
 
 The repository now follows the standard MCP server structure:
 ```
-kasm-mcp-server/
+kasm-mcp-server-v2/
 ├── package.json          # MCP server metadata
 ├── mcp.json             # Detailed MCP manifest
 ├── requirements.txt     # Python dependencies
@@ -60,7 +60,7 @@ kasm-mcp-server/
 
 3. **Test Imports**:
    ```bash
-   cd projects/kasm-mcp-server
+   cd projects/kasm-mcp-server-v2
    python test_imports.py
    ```
 

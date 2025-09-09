@@ -14,10 +14,10 @@ NC='\033[0m' # No Color
 
 # Configuration
 REPO_URL="https://github.com/roguedev-ai/kasm-mcp-server-v2.git"
-INSTALL_DIR="/opt/kasm-mcp-server"
-SERVICE_NAME="kasm-mcp-server"
+INSTALL_DIR="/opt/kasm-mcp-server-v2"
+SERVICE_NAME="kasm-mcp-server-v2"
 SERVICE_USER="mcp-server"
-LOG_FILE="/var/log/kasm-mcp-server-install.log"
+LOG_FILE="/var/log/kasm-mcp-server-v2-install.log"
 
 # Function to print colored output
 print_status() {

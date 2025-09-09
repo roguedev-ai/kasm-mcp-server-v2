@@ -1,11 +1,11 @@
 version: '3.8'
 
 services:
-  kasm-mcp-server:
+  kasm-mcp-server-v2:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: kasm-mcp-server
+    container_name: kasm-mcp-server-v2
     restart: unless-stopped
     ports:
       - "8080:8080"

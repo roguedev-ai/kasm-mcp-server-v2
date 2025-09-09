@@ -1,11 +1,11 @@
 {
-  "name": "kasm-mcp-server",
+  "name": "kasm-mcp-server-v2",
   "version": "2.0.0",
   "description": "MCP server for Kasm Workspaces - enables AI agents to manage and interact with containerized desktop infrastructure",
   "author": "RogueDev AI",
   "license": "MIT",
-  "homepage": "https://github.com/roguedev-ai/kasm-mcp-server",
-  "repository": "https://github.com/roguedev-ai/kasm-mcp-server",
+  "homepage": "https://github.com/roguedev-ai/kasm-mcp-server-v2",
+  "repository": "https://github.com/roguedev-ai/kasm-mcp-server-v2",
   "categories": [
     "infrastructure",
     "containers",

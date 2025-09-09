@@ -12,12 +12,12 @@ A Model Context Protocol (MCP) server that provides programmatic access to Kasm 
 ### Via MCP Tools Registry
 ```bash
 # Coming soon on mcp.tools
-mcp install kasm-mcp-server
+mcp install kasm-mcp-server-v2
 ```
 
 ### Via npm (for package.json)
 ```bash
-npm install @roguedev-ai/kasm-mcp-server
+npm install @roguedev-ai/kasm-mcp-server-v2
 ```
 
 ## 📋 Documentation
@@ -95,8 +95,8 @@ See [SECURITY.md](SECURITY.md) for detailed security documentation.
 
 ```bash
 # Clone the repository
-git clone https://github.com/roguedev-ai/kasm-mcp-server.git
-cd kasm-mcp-server
+git clone https://github.com/roguedev-ai/kasm-mcp-server-v2.git
+cd kasm-mcp-server-v2
 
 # Set up environment variables
 cp .env.example .env
@@ -109,7 +109,7 @@ docker-compose up -d
 ### Remote Installation
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/roguedev-ai/kasm-mcp-server/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/roguedev-ai/kasm-mcp-server-v2/master/install.sh | bash
 ```
 
 ## Configuration
@@ -134,7 +134,7 @@ Required environment variables:
     "kasm": {
       "command": "python",
       "args": ["-m", "src"],
-      "cwd": "/path/to/kasm-mcp-server",
+      "cwd": "/path/to/kasm-mcp-server-v2",
       "env": {
         "KASM_API_URL": "https://your-kasm-instance.com",
         "KASM_API_KEY": "your-api-key",
@@ -152,7 +152,7 @@ Required environment variables:
     "kasm": {
       "command": "python",
       "args": ["-m", "src"],
-      "cwd": "/path/to/kasm-mcp-server",
+      "cwd": "/path/to/kasm-mcp-server-v2",
       "env": {
         "KASM_API_URL": "https://your-kasm-instance.com",
         "KASM_API_KEY": "your-api-key",
@@ -173,8 +173,8 @@ Required environment variables:
 ### Using Docker (Recommended)
 ```bash
 # Clone and configure
-git clone https://github.com/roguedev-ai/kasm-mcp-server.git
-cd kasm-mcp-server
+git clone https://github.com/roguedev-ai/kasm-mcp-server-v2.git
+cd kasm-mcp-server-v2
 cp .env.example .env
 # Edit .env with your Kasm credentials
 
@@ -184,7 +184,7 @@ docker-compose up -d
 
 ### Remote Installation
 ```bash
-curl -sSL https://raw.githubusercontent.com/roguedev-ai/kasm-mcp-server/main/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/roguedev-ai/kasm-mcp-server-v2/master/install.sh | sudo bash
 ```
 
 ## Development
@@ -212,7 +212,7 @@ python -m src
 
 ### Project Structure
 ```
-kasm-mcp-server/
+kasm-mcp-server-v2/
 ├── src/                    # Source code
 │   ├── server.py          # Main MCP server
 │   ├── kasm_api/          # Kasm API client

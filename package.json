@@ -13,13 +13,13 @@
   ],
   "author": "RogueDev AI <contact@roguedev.ai>",
   "license": "MIT",
-  "homepage": "https://github.com/roguedev-ai/kasm-mcp-server",
+  "homepage": "https://github.com/roguedev-ai/kasm-mcp-server-v2",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/roguedev-ai/kasm-mcp-server.git"
+    "url": "git+https://github.com/roguedev-ai/kasm-mcp-server-v2.git"
   },
   "bugs": {
-    "url": "https://github.com/roguedev-ai/kasm-mcp-server/issues"
+    "url": "https://github.com/roguedev-ai/kasm-mcp-server-v2/issues"
   },
   "main": "src/server.py",
   "type": "module",
