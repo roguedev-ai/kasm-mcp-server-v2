@@ -1,0 +1,92 @@
+{
+  "name": "@roguedev-ai/kasm-mcp-server",
+  "version": "2.0.0",
+  "description": "MCP server for Kasm Workspaces - enables AI agents to manage containerized desktop infrastructure",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "kasm",
+    "workspaces",
+    "containers",
+    "ai-tools",
+    "automation"
+  ],
+  "author": "RogueDev AI <contact@roguedev.ai>",
+  "license": "MIT",
+  "homepage": "https://github.com/roguedev-ai/kasm-mcp-server",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/roguedev-ai/kasm-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/roguedev-ai/kasm-mcp-server/issues"
+  },
+  "main": "src/server.py",
+  "type": "module",
+  "scripts": {
+    "start": "python -m src",
+    "test": "pytest",
+    "dev": "python -m src",
+    "build": "docker build -t kasm-mcp-server .",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "mcp": {
+    "server": {
+      "command": "python",
+      "args": ["-m", "src"],
+      "transport": "stdio",
+      "description": "MCP server for Kasm Workspaces integration",
+      "tools": [
+        {
+          "name": "execute_kasm_command",
+          "description": "Execute shell commands inside a Kasm session with security boundaries"
+        },
+        {
+          "name": "create_kasm_session",
+          "description": "Launch a new Kasm session with a specified workspace image"
+        },
+        {
+          "name": "destroy_kasm_session",
+          "description": "Terminate an existing Kasm session"
+        },
+        {
+          "name": "get_session_status",
+          "description": "Check the current status of a Kasm session"
+        },
+        {
+          "name": "read_kasm_file",
+          "description": "Read file contents from a Kasm session"
+        },
+        {
+          "name": "write_kasm_file",
+          "description": "Write content to a file in a Kasm session"
+        },
+        {
+          "name": "get_available_workspaces",
+          "description": "List available Kasm workspace images"
+        },
+        {
+          "name": "get_kasm_users",
+          "description": "List users in the Kasm system"
+        },
+        {
+          "name": "create_kasm_user",
+          "description": "Create a new user in the Kasm system"
+        }
+      ]
+    }
+  },
+  "engines": {
+    "python": ">=3.8"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
+}

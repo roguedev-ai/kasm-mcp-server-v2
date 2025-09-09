@@ -1,0 +1,220 @@
+{
+  "name": "kasm-mcp-server",
+  "version": "2.0.0",
+  "description": "MCP server for Kasm Workspaces - enables AI agents to manage and interact with containerized desktop infrastructure",
+  "author": "RogueDev AI",
+  "license": "MIT",
+  "homepage": "https://github.com/roguedev-ai/kasm-mcp-server",
+  "repository": "https://github.com/roguedev-ai/kasm-mcp-server",
+  "categories": [
+    "infrastructure",
+    "containers",
+    "automation",
+    "devops"
+  ],
+  "runtime": "python",
+  "transport": ["stdio", "http+sse"],
+  "features": {
+    "tools": true,
+    "resources": false,
+    "prompts": false
+  },
+  "tools": [
+    {
+      "name": "execute_kasm_command",
+      "description": "Execute shell commands inside a Kasm session with security boundaries",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kasm_id": {
+            "type": "string",
+            "description": "ID of the Kasm session"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "User ID owning the session"
+          },
+          "command": {
+            "type": "string",
+            "description": "Command to execute in the session"
+          },
+          "working_dir": {
+            "type": "string",
+            "description": "Working directory for command execution (optional)"
+          }
+        },
+        "required": ["kasm_id", "user_id", "command"]
+      }
+    },
+    {
+      "name": "create_kasm_session",
+      "description": "Launch a new Kasm session with a specified workspace image",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "image_name": {
+            "type": "string",
+            "description": "Name of the workspace image to launch"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "User ID requesting the session"
+          },
+          "group_id": {
+            "type": "string",
+            "description": "Group ID for the session"
+          }
+        },
+        "required": ["image_name", "user_id", "group_id"]
+      }
+    },
+    {
+      "name": "destroy_kasm_session",
+      "description": "Terminate an existing Kasm session",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kasm_id": {
+            "type": "string",
+            "description": "ID of the Kasm session to destroy"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "User ID owning the session"
+          }
+        },
+        "required": ["kasm_id", "user_id"]
+      }
+    },
+    {
+      "name": "get_session_status",
+      "description": "Check the current status of a Kasm session",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kasm_id": {
+            "type": "string",
+            "description": "ID of the Kasm session"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "User ID owning the session"
+          }
+        },
+        "required": ["kasm_id", "user_id"]
+      }
+    },
+    {
+      "name": "read_kasm_file",
+      "description": "Read the contents of a file from a Kasm session",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kasm_id": {
+            "type": "string",
+            "description": "ID of the Kasm session"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "User ID owning the session"
+          },
+          "file_path": {
+            "type": "string",
+            "description": "Path to the file to read"
+          }
+        },
+        "required": ["kasm_id", "user_id", "file_path"]
+      }
+    },
+    {
+      "name": "write_kasm_file",
+      "description": "Write content to a file in a Kasm session",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kasm_id": {
+            "type": "string",
+            "description": "ID of the Kasm session"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "User ID owning the session"
+          },
+          "file_path": {
+            "type": "string",
+            "description": "Path where the file should be written"
+          },
+          "content": {
+            "type": "string",
+            "description": "Content to write to the file"
+          }
+        },
+        "required": ["kasm_id", "user_id", "file_path", "content"]
+      }
+    },
+    {
+      "name": "get_available_workspaces",
+      "description": "List all available Kasm workspace images",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "get_kasm_users",
+      "description": "List all users in the Kasm system",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "create_kasm_user",
+      "description": "Create a new user in the Kasm system",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "Username for the new user"
+          },
+          "password": {
+            "type": "string",
+            "description": "Password for the new user"
+          },
+          "first_name": {
+            "type": "string",
+            "description": "User's first name (optional)"
+          },
+          "last_name": {
+            "type": "string",
+            "description": "User's last name (optional)"
+          }
+        },
+        "required": ["username", "password"]
+      }
+    }
+  ],
+  "configuration": {
+    "required": [
+      "KASM_API_URL",
+      "KASM_API_KEY",
+      "KASM_API_SECRET"
+    ],
+    "optional": [
+      "MCP_SERVER_PORT",
+      "MCP_SERVER_HOST",
+      "ALLOWED_ROOTS",
+      "LOG_LEVEL"
+    ]
+  },
+  "security": {
+    "features": [
+      "MCP Roots enforcement",
+      "Command filtering",
+      "Path validation",
+      "SHA256 API authentication",
+      "Container isolation"
+    ]
+  }
+}

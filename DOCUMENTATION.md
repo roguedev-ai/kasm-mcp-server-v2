@@ -1,0 +1,428 @@
+# Kasm MCP Server V2 - Comprehensive Documentation
+
+## Table of Contents
+1. [Overview](#overview)
+2. [Architecture](#architecture)
+3. [Installation](#installation)
+4. [Configuration](#configuration)
+5. [Available Tools](#available-tools)
+6. [Security](#security)
+7. [API Reference](#api-reference)
+8. [Examples](#examples)
+9. [Troubleshooting](#troubleshooting)
+10. [Development](#development)
+
+## Overview
+
+The Kasm MCP Server V2 is a Model Context Protocol (MCP) server that provides programmatic access to Kasm Workspaces. It enables AI agents like Cline to manage and interact with containerized desktop infrastructure through a standardized interface.
+
+### Key Features
+- **Session Management**: Create, destroy, and monitor Kasm sessions
+- **Command Execution**: Run commands inside containers with security boundaries
+- **File Operations**: Read and write files within containers
+- **User Management**: Create users and manage permissions
+- **Resource Discovery**: List available workspaces and users
+
+## Architecture
+
+### Component Overview
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   AI Agent      │────▶│   MCP Server    │────▶│ Kasm Workspaces │
+│   (Cline)       │◀────│   (This Project)│◀────│   Platform      │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+        │                        │                        │
+        │ MCP Protocol          │ HTTP+SSE              │ REST API
+        └───────────────────────┴────────────────────────┘
+```
+
+### Core Components
+
+1. **MCP Server** (`src/server.py`)
+   - Handles MCP protocol communication
+   - Manages tool registration and execution
+   - Provides HTTP+SSE transport for remote connections
+
+2. **Kasm API Client** (`src/kasm_api/client.py`)
+   - Wraps Kasm Developer API endpoints
+   - Handles authentication and request signing
+   - Provides typed interfaces for API calls
+
+3. **Security Layer** (`src/security/roots.py`)
+   - Implements MCP Roots mechanism
+   - Validates file paths and commands
+   - Prevents unauthorized access
+
+4. **Tools** (`src/tools/`)
+   - Modular tool implementations
+   - Each tool has defined schemas and validation
+   - Async execution support
+
+## Installation
+
+### Docker Installation (Recommended)
+
+1. Clone the repository:
+```bash
+git clone https://github.com/roguedev-ai/kasm-mcp-server.git
+cd kasm-mcp-server
+```
+
+2. Configure environment:
+```bash
+cp .env.example .env
+# Edit .env with your Kasm API credentials
+```
+
+3. Build and run:
+```bash
+docker-compose up -d
+```
+
+### Remote Installation
+
+For automated deployment on a remote server:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/roguedev-ai/kasm-mcp-server/main/install.sh | sudo bash
+```
+
+### Manual Installation
+
+1. Install Python 3.8+:
+```bash
+sudo apt-get update
+sudo apt-get install python3 python3-pip python3-venv
+```
+
+2. Create virtual environment:
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. Configure and run:
+```bash
+cp .env.example .env
+# Edit .env file
+python -m src
+```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `KASM_API_URL` | Kasm Workspaces API endpoint | - | Yes |
+| `KASM_API_KEY` | API key for authentication | - | Yes |
+| `KASM_API_SECRET` | API secret for authentication | - | Yes |
+| `MCP_SERVER_PORT` | Port for MCP server | 8080 | No |
+| `MCP_SERVER_HOST` | Host to bind to | 0.0.0.0 | No |
+| `ALLOWED_ROOTS` | Comma-separated allowed directories | /home/kasm_user,/workspace | No |
+| `LOG_LEVEL` | Logging level | INFO | No |
+
+### Cline Configuration
+
+Add to your Cline MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "kasm": {
+      "url": "http://your-server:8080",
+      "transport": "http+sse"
+    }
+  }
+}
+```
+
+## Available Tools
+
+### 1. execute_kasm_command
+Execute shell commands inside a Kasm session.
+
+**Parameters:**
+- `kasm_id` (string): ID of the Kasm session
+- `user_id` (string): User ID owning the session
+- `command` (string): Command to execute
+- `working_dir` (string, optional): Working directory
+
+**Example:**
+```json
+{
+  "kasm_id": "abc123",
+  "user_id": "user123",
+  "command": "ls -la",
+  "working_dir": "/home/kasm_user"
+}
+```
+
+### 2. create_kasm_session
+Launch a new Kasm session.
+
+**Parameters:**
+- `image_name` (string): Workspace image name
+- `user_id` (string): User ID requesting the session
+- `group_id` (string): Group ID for the session
+
+**Example:**
+```json
+{
+  "image_name": "kasmweb/ubuntu-focal-desktop",
+  "user_id": "user123",
+  "group_id": "group123"
+}
+```
+
+### 3. destroy_kasm_session
+Terminate an existing session.
+
+**Parameters:**
+- `kasm_id` (string): Session ID to destroy
+- `user_id` (string): User ID owning the session
+
+### 4. get_session_status
+Check session status.
+
+**Parameters:**
+- `kasm_id` (string): Session ID
+- `user_id` (string): User ID
+
+### 5. read_kasm_file
+Read file contents from a session.
+
+**Parameters:**
+- `kasm_id` (string): Session ID
+- `user_id` (string): User ID
+- `file_path` (string): Path to read
+
+### 6. write_kasm_file
+Write content to a file in a session.
+
+**Parameters:**
+- `kasm_id` (string): Session ID
+- `user_id` (string): User ID
+- `file_path` (string): Path to write
+- `content` (string): Content to write
+
+### 7. get_available_workspaces
+List available workspace images.
+
+**Parameters:** None
+
+### 8. get_kasm_users
+List system users.
+
+**Parameters:** None
+
+### 9. create_kasm_user
+Create a new user.
+
+**Parameters:**
+- `username` (string): Username
+- `password` (string): Password
+- `first_name` (string, optional): First name
+- `last_name` (string, optional): Last name
+
+## Security
+
+### MCP Roots Implementation
+
+The server implements the MCP Roots security mechanism to prevent unauthorized access:
+
+1. **Path Validation**: All file operations are validated against allowed roots
+2. **Command Filtering**: Dangerous commands are blocked (sudo, chmod, etc.)
+3. **Directory Traversal Prevention**: Paths containing `../` are rejected
+4. **System File Protection**: Access to /etc, /boot, /sys is blocked
+
+### Blocked Commands
+- System administration: `sudo`, `su`, `passwd`, `useradd`
+- Service management: `systemctl`, `service`, `init`
+- System control: `shutdown`, `reboot`, `halt`
+- File permissions: `chmod`, `chown` (when targeting system files)
+
+### API Authentication
+
+All Kasm API calls use SHA256-based authentication:
+1. Request body is combined with API key and secret
+2. SHA256 hash is generated
+3. Hash is included in request for verification
+
+## API Reference
+
+### Kasm API Endpoints Used
+
+| Endpoint | MCP Tool | Required Permissions |
+|----------|----------|---------------------|
+| `/api/public/request_kasm` | create_kasm_session | Users Auth Session, User |
+| `/api/public/destroy_kasm` | destroy_kasm_session | Users Auth Session, Session |
+| `/api/public/get_kasm_status` | get_session_status | Users Auth Session, Session |
+| `/api/public/exec_command_kasm` | execute_kasm_command, read_kasm_file, write_kasm_file | Sessions Modify |
+| `/api/public/get_workspaces` | get_available_workspaces | Images View |
+| `/api/public/get_users` | get_kasm_users | Users View |
+| `/api/public/create_user` | create_kasm_user | User |
+
+## Examples
+
+### Example 1: Create Session and Run Command
+
+```python
+# AI Agent Request
+"Create an Ubuntu session and install git"
+
+# MCP Tool Calls Generated:
+1. create_kasm_session:
+   {
+     "image_name": "kasmweb/ubuntu-focal-desktop",
+     "user_id": "user123",
+     "group_id": "default"
+   }
+
+2. execute_kasm_command:
+   {
+     "kasm_id": "returned_session_id",
+     "user_id": "user123",
+     "command": "sudo apt-get update && sudo apt-get install -y git"
+   }
+```
+
+### Example 2: Write and Execute Python Script
+
+```python
+# AI Agent Request
+"Create a Python script that prints Hello World and run it"
+
+# MCP Tool Calls Generated:
+1. write_kasm_file:
+   {
+     "kasm_id": "session123",
+     "user_id": "user123",
+     "file_path": "/home/kasm_user/hello.py",
+     "content": "print('Hello World')"
+   }
+
+2. execute_kasm_command:
+   {
+     "kasm_id": "session123",
+     "user_id": "user123",
+     "command": "python3 /home/kasm_user/hello.py"
+   }
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Connection Refused**
+   - Check if server is running: `systemctl status kasm-mcp-server`
+   - Verify port is open: `netstat -tlnp | grep 8080`
+   - Check firewall rules
+
+2. **Authentication Failed**
+   - Verify API credentials in .env file
+   - Check Kasm API permissions
+   - Ensure API endpoint URL is correct
+
+3. **Security Violations**
+   - Review ALLOWED_ROOTS configuration
+   - Check command for blocked patterns
+   - Ensure paths are within allowed directories
+
+4. **Docker Issues**
+   - Check logs: `docker-compose logs -f`
+   - Verify environment variables are passed correctly
+   - Ensure Docker daemon is running
+
+### Debug Mode
+
+Enable debug logging:
+```bash
+export LOG_LEVEL=DEBUG
+python -m src
+```
+
+### Health Check
+
+Test server health:
+```bash
+curl http://localhost:8080/health
+```
+
+## Development
+
+### Project Structure
+```
+kasm-mcp-server/
+├── src/
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── server.py           # Main server
+│   ├── kasm_api/          # API client
+│   ├── security/          # Security layer
+│   └── tools/             # Tool implementations
+├── tests/                 # Unit tests
+├── Dockerfile            # Container definition
+├── docker-compose.yml    # Compose configuration
+├── requirements.txt      # Dependencies
+└── install.sh           # Installation script
+```
+
+### Adding New Tools
+
+1. Create tool class in `src/tools/`:
+```python
+class MyNewTool(Tool):
+    name = "my_new_tool"
+    description = "Tool description"
+    input_schema = MyToolParams
+    
+    async def run(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        # Implementation
+        pass
+```
+
+2. Add to `src/tools/__init__.py`
+3. Register in `src/server.py`
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=src tests/
+
+# Run specific test
+pytest tests/test_basic.py::TestRootsValidator
+```
+
+### Contributing
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/my-feature`
+3. Make changes and test
+4. Submit pull request
+
+### Code Style
+
+- Follow PEP 8
+- Use type hints
+- Add docstrings
+- Run black formatter: `black src/`
+
+## License
+
+MIT License - See LICENSE file for details.
+
+## Support
+
+- GitHub Issues: https://github.com/roguedev-ai/kasm-mcp-server/issues
+- Documentation: This file
+- MCP Specification: https://modelcontextprotocol.io

@@ -1,0 +1,24 @@
+# MCP SDK and core dependencies
+mcp-python>=0.1.0
+aiohttp>=3.9.0
+aiohttp-sse>=2.1.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+
+# Kasm API client dependencies
+requests>=2.31.0
+httpx>=0.25.0
+
+# Security and validation
+jsonschema>=4.20.0
+
+# Development dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0
+
+# Logging and monitoring
+structlog>=23.0.0

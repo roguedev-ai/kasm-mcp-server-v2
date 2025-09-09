@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  kasm-mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kasm-mcp-server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Kasm API Configuration
+      - KASM_API_URL=${KASM_API_URL}
+      - KASM_API_KEY=${KASM_API_KEY}
+      - KASM_API_SECRET=${KASM_API_SECRET}
+      
+      # MCP Server Configuration
+      - MCP_SERVER_PORT=${MCP_SERVER_PORT:-8080}
+      - MCP_SERVER_HOST=${MCP_SERVER_HOST:-0.0.0.0}
+      
+      # Security Configuration
+      - ALLOWED_ROOTS=${ALLOWED_ROOTS:-/home/kasm_user,/workspace}
+      
+      # Logging Configuration
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # Optional SSL/TLS Configuration
+      - SSL_CERT_FILE=${SSL_CERT_FILE:-}
+      - SSL_KEY_FILE=${SSL_KEY_FILE:-}
+      
+      # Rate limiting
+      - RATE_LIMIT_REQUESTS=${RATE_LIMIT_REQUESTS:-100}
+      - RATE_LIMIT_PERIOD=${RATE_LIMIT_PERIOD:-60}
+    
+    volumes:
+      # Mount SSL certificates if needed
+      - ./certs:/home/mcp-user/certs:ro
+      
+    networks:
+      - mcp-network
+    
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s = socket.socket(); s.connect(('localhost', 8080)); s.close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  mcp-network:
+    driver: bridge
