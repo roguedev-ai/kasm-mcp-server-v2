@@ -58,8 +58,7 @@ logger.info("=" * 60)
 # Initialize FastMCP server
 try:
     mcp = FastMCP(
-        name="Kasm MCP Server",
-        version="0.1.0"
+        name="Kasm MCP Server"
     )
     logger.info("FastMCP server instance created successfully")
 except Exception as e:
