@@ -23,6 +23,16 @@ The Kasm MCP Server implements defense-in-depth security principles to protect a
 4. **Secure by Default**: Safe configurations out of the box
 5. **Fail Secure**: Deny access on security failures
 
+### Official MCP SDK Security Benefits
+
+By using the official Model Context Protocol SDK, we gain additional security advantages:
+
+- **Protocol Compliance**: Guaranteed adherence to MCP security standards
+- **Validated Implementation**: SDK is tested and maintained by the MCP team
+- **Security Updates**: Automatic security patches through SDK updates
+- **Input Validation**: Built-in protocol-level validation
+- **Secure Communication**: Standardized secure transport mechanisms
+
 ## Threat Model
 
 ### Attack Surface Analysis

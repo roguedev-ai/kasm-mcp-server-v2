@@ -1,98 +1,108 @@
-"""Kasm Workspaces API client implementation."""
+"""Kasm API client for interacting with Kasm Workspaces."""
 
-import hashlib
 import json
 import logging
+import os
 from typing import Any, Dict, Optional
 from urllib.parse import urljoin
 
-import requests
-from requests.exceptions import RequestException
+import aiohttp
+from aiohttp import ClientSession
 
 logger = logging.getLogger(__name__)
 
 
-class KasmAPIError(Exception):
-    """Base exception for Kasm API errors."""
-    pass
-
-
 class KasmAPIClient:
-    """Client for interacting with Kasm Workspaces Developer API."""
+    """Client for interacting with Kasm Workspaces API."""
     
     def __init__(self, api_url: str, api_key: str, api_secret: str):
-        """
-        Initialize Kasm API client.
+        """Initialize the Kasm API client.
         
         Args:
-            api_url: Base URL for Kasm API
+            api_url: Base URL for the Kasm API
             api_key: API key for authentication
             api_secret: API secret for authentication
         """
         self.api_url = api_url.rstrip('/')
         self.api_key = api_key
         self.api_secret = api_secret
-        self.session = requests.Session()
+        self.session: Optional[ClientSession] = None
         
-    def _generate_auth_hash(self, endpoint: str, body: Dict[str, Any]) -> str:
-        """
-        Generate authentication hash for Kasm API.
+    async def __aenter__(self):
+        """Async context manager entry."""
+        self.session = ClientSession()
+        return self
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        if self.session:
+            await self.session.close()
+            
+    async def _make_request(
+        self,
+        method: str,
+        endpoint: str,
+        data: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Make an authenticated request to the Kasm API.
         
         Args:
+            method: HTTP method (GET, POST, etc.)
             endpoint: API endpoint path
-            body: Request body
+            data: Request data
             
         Returns:
-            Authentication hash
+            Response data as dictionary
         """
-        # Kasm uses SHA256 hash of endpoint + api_key + api_secret + request_body
-        auth_string = f"{endpoint}{self.api_key}{self.api_secret}{json.dumps(body, separators=(',', ':'))}"
-        return hashlib.sha256(auth_string.encode()).hexdigest()
-    
-    def _make_request(self, endpoint: str, body: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Make authenticated request to Kasm API.
-        
-        Args:
-            endpoint: API endpoint path
-            body: Request body
+        if not self.session:
+            self.session = ClientSession()
             
-        Returns:
-            API response data
-            
-        Raises:
-            KasmAPIError: If request fails
-        """
         url = urljoin(self.api_url, endpoint)
         
-        # Add authentication to body
-        body['api_key'] = self.api_key
-        body['api_key_auth'] = self._generate_auth_hash(endpoint, body)
+        # Prepare authentication
+        auth_data = {
+            "api_key": self.api_key,
+            "api_secret": self.api_secret
+        }
+        
+        if data:
+            auth_data.update(data)
+            
+        headers = {
+            "Content-Type": "application/json"
+        }
         
         try:
-            response = self.session.post(url, json=body)
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            # Check for API-level errors
-            if isinstance(data, dict) and data.get('error'):
-                raise KasmAPIError(f"API error: {data.get('error_message', 'Unknown error')}")
+            async with self.session.request(
+                method,
+                url,
+                json=auth_data,
+                headers=headers
+            ) as response:
+                response_data = await response.json()
                 
-            return data
+                if response.status >= 400:
+                    error_msg = response_data.get("error", "Unknown error")
+                    raise Exception(f"Kasm API error: {error_msg}")
+                    
+                return response_data
+                
+        except aiohttp.ClientError as e:
+            logger.error(f"HTTP error calling Kasm API: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error calling Kasm API: {e}")
+            raise
             
-        except RequestException as e:
-            logger.error(f"Request failed: {e}")
-            raise KasmAPIError(f"Request failed: {str(e)}") from e
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON response: {e}")
-            raise KasmAPIError(f"Invalid JSON response: {str(e)}") from e
-    
     # Session Management Methods
     
-    def request_kasm(self, image_name: str, user_id: str, group_id: str) -> Dict[str, Any]:
-        """
-        Request a new Kasm session.
+    async def request_kasm(
+        self,
+        image_name: str,
+        user_id: str,
+        group_id: str
+    ) -> Dict[str, Any]:
+        """Request a new Kasm session.
         
         Args:
             image_name: Name of the workspace image
@@ -100,37 +110,35 @@ class KasmAPIClient:
             group_id: Group ID for the session
             
         Returns:
-            Session creation response including kasm_id
+            Session creation response
         """
-        body = {
+        data = {
             "image_name": image_name,
             "user_id": user_id,
             "group_id": group_id
         }
         
-        return self._make_request("/api/public/request_kasm", body)
-    
-    def destroy_kasm(self, kasm_id: str, user_id: str) -> Dict[str, Any]:
-        """
-        Destroy a Kasm session.
+        return await self._make_request("POST", "/api/public/request_kasm", data)
+        
+    async def destroy_kasm(self, kasm_id: str, user_id: str) -> Dict[str, Any]:
+        """Destroy a Kasm session.
         
         Args:
             kasm_id: ID of the session to destroy
             user_id: User ID owning the session
             
         Returns:
-            Destruction confirmation
+            Destruction response
         """
-        body = {
+        data = {
             "kasm_id": kasm_id,
             "user_id": user_id
         }
         
-        return self._make_request("/api/public/destroy_kasm", body)
-    
-    def get_kasm_status(self, kasm_id: str, user_id: str) -> Dict[str, Any]:
-        """
-        Get status of a Kasm session.
+        return await self._make_request("POST", "/api/public/destroy_kasm", data)
+        
+    async def get_kasm_status(self, kasm_id: str, user_id: str) -> Dict[str, Any]:
+        """Get the status of a Kasm session.
         
         Args:
             kasm_id: ID of the session
@@ -139,55 +147,70 @@ class KasmAPIClient:
         Returns:
             Session status information
         """
-        body = {
+        data = {
             "kasm_id": kasm_id,
             "user_id": user_id
         }
         
-        return self._make_request("/api/public/get_kasm_status", body)
-    
+        return await self._make_request("POST", "/api/public/get_kasm_status", data)
+        
     # Command Execution
     
-    def exec_command(self, kasm_id: str, user_id: str, command: str, 
-                    working_dir: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Execute a command in a Kasm session.
+    async def exec_command(
+        self,
+        kasm_id: str,
+        user_id: str,
+        command: str,
+        working_dir: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Execute a command in a Kasm session.
         
         Args:
             kasm_id: ID of the session
             user_id: User ID owning the session
             command: Command to execute
-            working_dir: Optional working directory
+            working_dir: Working directory for command execution
             
         Returns:
-            Command execution results
+            Command execution result
         """
-        body = {
+        data = {
             "kasm_id": kasm_id,
             "user_id": user_id,
-            "exec": command
+            "command": command
         }
         
         if working_dir:
-            body["working_dir"] = working_dir
+            data["working_dir"] = working_dir
             
-        return self._make_request("/api/public/exec_command_kasm", body)
+        return await self._make_request("POST", "/api/public/exec_command_kasm", data)
+        
+    # Admin Methods
     
-    # User Management
-    
-    def get_users(self) -> Dict[str, Any]:
+    async def get_workspaces(self) -> Dict[str, Any]:
+        """Get list of available workspaces.
+        
+        Returns:
+            List of workspace configurations
         """
-        Get list of users.
+        return await self._make_request("GET", "/api/public/get_workspaces")
+        
+    async def get_users(self) -> Dict[str, Any]:
+        """Get list of users.
         
         Returns:
             List of users
         """
-        return self._make_request("/api/public/get_users", {})
-    
-    def create_user(self, username: str, password: str, 
-                   first_name: str = "", last_name: str = "") -> Dict[str, Any]:
-        """
-        Create a new user.
+        return await self._make_request("POST", "/api/public/get_users")
+        
+    async def create_user(
+        self,
+        username: str,
+        password: str,
+        first_name: str = "",
+        last_name: str = ""
+    ) -> Dict[str, Any]:
+        """Create a new user.
         
         Args:
             username: Username for the new user
@@ -198,22 +221,64 @@ class KasmAPIClient:
         Returns:
             User creation response
         """
-        body = {
+        data = {
             "username": username,
             "password": password,
             "first_name": first_name,
             "last_name": last_name
         }
         
-        return self._make_request("/api/public/create_user", body)
-    
-    # Workspace Management
-    
-    def get_workspaces(self) -> Dict[str, Any]:
-        """
-        Get list of available workspaces.
+        return await self._make_request("POST", "/api/public/create_user", data)
         
-        Returns:
-            List of workspace images
-        """
-        return self._make_request("/api/public/get_workspaces", {})
+    # Synchronous wrapper methods for backward compatibility
+    
+    def request_kasm_sync(self, image_name: str, user_id: str, group_id: str) -> Dict[str, Any]:
+        """Synchronous wrapper for request_kasm."""
+        import asyncio
+        return asyncio.run(self.request_kasm(image_name, user_id, group_id))
+        
+    def destroy_kasm_sync(self, kasm_id: str, user_id: str) -> Dict[str, Any]:
+        """Synchronous wrapper for destroy_kasm."""
+        import asyncio
+        return asyncio.run(self.destroy_kasm(kasm_id, user_id))
+        
+    def get_kasm_status_sync(self, kasm_id: str, user_id: str) -> Dict[str, Any]:
+        """Synchronous wrapper for get_kasm_status."""
+        import asyncio
+        return asyncio.run(self.get_kasm_status(kasm_id, user_id))
+        
+    def exec_command_sync(
+        self,
+        kasm_id: str,
+        user_id: str,
+        command: str,
+        working_dir: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Synchronous wrapper for exec_command."""
+        import asyncio
+        return asyncio.run(self.exec_command(kasm_id, user_id, command, working_dir))
+        
+    def get_workspaces_sync(self) -> Dict[str, Any]:
+        """Synchronous wrapper for get_workspaces."""
+        import asyncio
+        return asyncio.run(self.get_workspaces())
+        
+    def get_users_sync(self) -> Dict[str, Any]:
+        """Synchronous wrapper for get_users."""
+        import asyncio
+        return asyncio.run(self.get_users())
+        
+    def create_user_sync(
+        self,
+        username: str,
+        password: str,
+        first_name: str = "",
+        last_name: str = ""
+    ) -> Dict[str, Any]:
+        """Synchronous wrapper for create_user."""
+        import asyncio
+        return asyncio.run(self.create_user(username, password, first_name, last_name))
+        
+    # Note: The async methods are the primary interface.
+    # Sync wrappers are provided for backward compatibility but should not override async methods.
+    # Use request_kasm_sync, destroy_kasm_sync, etc. explicitly if synchronous execution is needed.

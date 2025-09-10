@@ -89,19 +89,22 @@ graph TB
 ### Component Descriptions
 
 #### 1. MCP Server (`src/server.py`)
-- **Purpose**: Main entry point for MCP protocol handling
+- **Purpose**: Main entry point using official MCP SDK
+- **Implementation**: Uses FastMCP from the official SDK
 - **Responsibilities**:
-  - Protocol implementation
-  - Request routing
-  - Response formatting
-  - Connection management
+  - Tool registration via decorators
+  - Automatic protocol handling
+  - Built-in request/response management
+  - Connection handling via SDK
 
-#### 2. Tool Registry (`src/tools/`)
-- **Purpose**: Manages available tools and their execution
-- **Components**:
-  - `command.py`: Execute commands in containers
-  - `session.py`: Manage Kasm sessions and file operations
-  - `admin.py`: Administrative functions
+#### 2. Tool Registry
+- **Purpose**: Tools defined directly in server.py
+- **Implementation**: Using @mcp.tool() decorators
+- **Tools**:
+  - Command execution with security validation
+  - Session management (create, destroy, status)
+  - File operations (read, write)
+  - Admin functions (users, workspaces)
 
 #### 3. Security Layer (`src/security/`)
 - **Purpose**: Enforces security boundaries

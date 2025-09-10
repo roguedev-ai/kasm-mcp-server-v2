@@ -1,194 +1,544 @@
-"""Main MCP server implementation for Kasm Workspaces."""
+"""Kasm MCP Server - Main server implementation using official MCP SDK."""
 
-import asyncio
-import logging
 import os
 import sys
-from typing import List, Optional
+import logging
+from typing import Optional
+import traceback
 
 from dotenv import load_dotenv
-from mcp_python import Server
-from mcp_python.server import NotificationOptions
-from mcp_python.server.models import InitializationOptions
-from mcp_python.server.stdio import stdio_server
-from mcp_python.types import Tool, Resource
+
+# Try different import paths for MCP SDK
+try:
+    from mcp.server.fastmcp import FastMCP
+    logger = logging.getLogger(__name__)
+    logger.info("Successfully imported FastMCP from mcp.server.fastmcp")
+except ImportError as e:
+    try:
+        from mcp.server import Server as FastMCP
+        logger = logging.getLogger(__name__)
+        logger.info("Successfully imported Server as FastMCP from mcp.server")
+    except ImportError:
+        try:
+            from mcp import FastMCP
+            logger = logging.getLogger(__name__)
+            logger.info("Successfully imported FastMCP from mcp")
+        except ImportError:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to import MCP SDK: {e}")
+            logger.error("Please ensure 'mcp' package is installed: pip install mcp")
+            sys.exit(1)
 
 from .kasm_api import KasmAPIClient
-from .security import RootsValidator
-from .tools import (
-    ExecuteKasmCommandTool,
-    CreateKasmSessionTool,
-    DestroyKasmSessionTool,
-    GetSessionStatusTool,
-    ReadKasmFileTool,
-    WriteKasmFileTool,
-    GetAvailableWorkspacesTool,
-    GetKasmUsersTool,
-    CreateKasmUserTool
-)
+from .security import RootsValidator, SecurityError
 
 # Load environment variables
 load_dotenv()
 
-# Configure logging
+# Configure logging with debug level for troubleshooting
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO"),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=getattr(logging, log_level, logging.INFO),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.StreamHandler(sys.stderr)
+    ]
 )
 logger = logging.getLogger(__name__)
 
+# Log startup information
+logger.info("=" * 60)
+logger.info("Kasm MCP Server Starting...")
+logger.info(f"Python version: {sys.version}")
+logger.info(f"Working directory: {os.getcwd()}")
+logger.info(f"Environment file loaded: {os.path.exists('.env')}")
+logger.info("=" * 60)
 
-class KasmMCPServer:
-    """MCP Server for Kasm Workspaces integration."""
+# Initialize FastMCP server
+try:
+    mcp = FastMCP(
+        name="Kasm MCP Server",
+        version="0.1.0"
+    )
+    logger.info("FastMCP server instance created successfully")
+except Exception as e:
+    logger.error(f"Failed to create FastMCP instance: {e}")
+    logger.error(traceback.format_exc())
+    sys.exit(1)
+
+# Global instances (will be initialized in main)
+kasm_client: Optional[KasmAPIClient] = None
+roots_validator: Optional[RootsValidator] = None
+
+
+def initialize_clients():
+    """Initialize Kasm API client and security validator."""
+    global kasm_client, roots_validator
     
-    def __init__(self):
-        """Initialize the MCP server."""
-        self.server = Server("kasm-mcp-server-v2")
-        
-        # Load configuration from environment
-        self.kasm_api_url = os.getenv("KASM_API_URL")
-        self.kasm_api_key = os.getenv("KASM_API_KEY")
-        self.kasm_api_secret = os.getenv("KASM_API_SECRET")
-        
-        if not all([self.kasm_api_url, self.kasm_api_key, self.kasm_api_secret]):
-            raise ValueError(
-                "Missing required environment variables: "
-                "KASM_API_URL, KASM_API_KEY, KASM_API_SECRET"
-            )
-        
-        # Parse allowed roots
-        allowed_roots_str = os.getenv("ALLOWED_ROOTS", "/home/kasm_user,/workspace")
-        self.allowed_roots = [
-            root.strip() for root in allowed_roots_str.split(",") if root.strip()
-        ]
-        
-        # Initialize components
-        self.kasm_client = KasmAPIClient(
-            api_url=self.kasm_api_url,
-            api_key=self.kasm_api_key,
-            api_secret=self.kasm_api_secret
-        )
-        
-        self.roots_validator = RootsValidator(self.allowed_roots)
-        
-        # Initialize tools
-        self._init_tools()
-        
-        # Set up server handlers
-        self._setup_handlers()
-        
-    def _init_tools(self):
-        """Initialize all available tools."""
-        # Phase 1: Core command execution
-        self.execute_command_tool = ExecuteKasmCommandTool(
-            self.kasm_client,
-            self.roots_validator
-        )
-        
-        # Phase 2: Session management
-        self.create_session_tool = CreateKasmSessionTool(self.kasm_client)
-        self.destroy_session_tool = DestroyKasmSessionTool(self.kasm_client)
-        self.get_session_status_tool = GetSessionStatusTool(self.kasm_client)
-        
-        # Phase 2: File operations
-        self.read_file_tool = ReadKasmFileTool(
-            self.kasm_client,
-            self.roots_validator
-        )
-        self.write_file_tool = WriteKasmFileTool(
-            self.kasm_client,
-            self.roots_validator
-        )
-        
-        # Phase 3: Admin and resources
-        self.get_workspaces_tool = GetAvailableWorkspacesTool(self.kasm_client)
-        self.get_users_tool = GetKasmUsersTool(self.kasm_client)
-        self.create_user_tool = CreateKasmUserTool(self.kasm_client)
-        
-        # Store all tools
-        self.tools = [
-            self.execute_command_tool,
-            self.create_session_tool,
-            self.destroy_session_tool,
-            self.get_session_status_tool,
-            self.read_file_tool,
-            self.write_file_tool,
-            self.get_workspaces_tool,
-            self.get_users_tool,
-            self.create_user_tool
-        ]
-        
-    def _setup_handlers(self):
-        """Set up MCP server handlers."""
-        
-        @self.server.list_tools()
-        async def handle_list_tools() -> List[Tool]:
-            """List all available tools."""
-            return [
-                Tool(
-                    name=tool.name,
-                    description=tool.description,
-                    inputSchema=tool.input_schema.schema() if tool.input_schema else {}
-                )
-                for tool in self.tools
-            ]
-        
-        @self.server.call_tool()
-        async def handle_call_tool(name: str, arguments: dict) -> List[dict]:
-            """Handle tool execution requests."""
-            logger.info(f"Tool called: {name} with arguments: {arguments}")
-            
-            # Find the requested tool
-            tool = next((t for t in self.tools if t.name == name), None)
-            if not tool:
-                raise ValueError(f"Unknown tool: {name}")
-            
-            # Execute the tool
-            result = await tool.run(arguments)
-            
-            return [result]
-        
-        @self.server.list_resources()
-        async def handle_list_resources() -> List[Resource]:
-            """List available resources."""
-            # For now, we don't have resources, but this can be expanded
-            return []
-        
-    async def run(self):
-        """Run the MCP server."""
-        logger.info("Starting Kasm MCP Server v2.0.0")
-        logger.info(f"Kasm API URL: {self.kasm_api_url}")
-        logger.info(f"Allowed roots: {', '.join(self.allowed_roots)}")
-        
-        # Run the server using stdio transport
-        async with stdio_server() as (read_stream, write_stream):
-            init_options = InitializationOptions(
-                server_name="kasm-mcp-server-v2",
-                server_version="2.0.0",
-                capabilities=self.server.get_capabilities(
-                    notification_options=NotificationOptions(),
-                    experimental_capabilities={}
-                )
-            )
-            
-            await self.server.run(
-                read_stream,
-                write_stream,
-                init_options
-            )
+    # Get configuration from environment
+    api_url = os.getenv("KASM_API_URL", "https://kasm.example.com")
+    api_key = os.getenv("KASM_API_KEY", "")
+    api_secret = os.getenv("KASM_API_SECRET", "")
+    
+    if not api_key or not api_secret:
+        raise ValueError("KASM_API_KEY and KASM_API_SECRET must be set")
+    
+    # Initialize clients
+    kasm_client = KasmAPIClient(api_url, api_key, api_secret)
+    
+    # Initialize security validator with allowed roots
+    allowed_roots = os.getenv("KASM_ALLOWED_ROOTS", "/home/kasm-user").split(",")
+    roots_validator = RootsValidator(allowed_roots)
+    
+    logger.info(f"Initialized Kasm API client for {api_url}")
+    logger.info(f"Allowed roots: {allowed_roots}")
 
 
-def main():
-    """Main entry point."""
+# Command Execution Tool
+@mcp.tool()
+async def execute_kasm_command(
+    kasm_id: str,
+    command: str,
+    working_dir: Optional[str] = None
+) -> dict:
+    """Execute a command in a Kasm session.
+    
+    Args:
+        kasm_id: ID of the Kasm session
+        command: Command to execute
+        working_dir: Working directory for command execution
+        
+    Returns:
+        Command execution result
+    """
+    if not kasm_client or not roots_validator:
+        return {"success": False, "error": "Server not initialized"}
+    
     try:
-        server = KasmMCPServer()
-        asyncio.run(server.run())
-    except KeyboardInterrupt:
-        logger.info("Server stopped by user")
+        # Validate command for security
+        roots_validator.validate_command(command, working_dir)
+        
+        # Execute command
+        result = await kasm_client.exec_command(
+            kasm_id=kasm_id,
+            user_id=os.getenv("KASM_USER_ID", "default"),
+            command=command,
+            working_dir=working_dir
+        )
+        
+        return {
+            "success": True,
+            "output": result.get("output", ""),
+            "exit_code": result.get("exit_code", 0),
+            "error": result.get("error", "")
+        }
+        
+    except SecurityError as e:
+        logger.warning(f"Security violation: {e}")
+        return {
+            "success": False,
+            "error": f"Security violation: {str(e)}",
+            "error_type": "security"
+        }
+    except Exception as e:
+        logger.error(f"Failed to execute command: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to execute command: {str(e)}"
+        }
+
+
+# Session Management Tools
+@mcp.tool()
+async def create_kasm_session(
+    image_name: str,
+    group_id: str
+) -> dict:
+    """Create a new Kasm session with the specified workspace image.
+    
+    Args:
+        image_name: Name of the workspace image to launch
+        group_id: Group ID for the session
+        
+    Returns:
+        Session creation result with session ID and connection details
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        user_id = os.getenv("KASM_USER_ID", "default")
+        
+        result = await kasm_client.request_kasm(
+            image_name=image_name,
+            user_id=user_id,
+            group_id=group_id
+        )
+        
+        return {
+            "success": True,
+            "kasm_id": result.get("kasm_id"),
+            "session_url": result.get("kasm_url"),
+            "status": result.get("status", "created"),
+            "image_name": image_name
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to create Kasm session: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to create session: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def destroy_kasm_session(kasm_id: str) -> dict:
+    """Destroy an existing Kasm session.
+    
+    Args:
+        kasm_id: ID of the Kasm session to destroy
+        
+    Returns:
+        Destruction result
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        user_id = os.getenv("KASM_USER_ID", "default")
+        
+        result = await kasm_client.destroy_kasm(
+            kasm_id=kasm_id,
+            user_id=user_id
+        )
+        
+        return {
+            "success": True,
+            "kasm_id": kasm_id,
+            "status": "destroyed",
+            "message": "Session terminated successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to destroy Kasm session: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to destroy session: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def get_session_status(kasm_id: str) -> dict:
+    """Get the status of a Kasm session.
+    
+    Args:
+        kasm_id: ID of the Kasm session
+        
+    Returns:
+        Session status information
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        user_id = os.getenv("KASM_USER_ID", "default")
+        
+        result = await kasm_client.get_kasm_status(
+            kasm_id=kasm_id,
+            user_id=user_id
+        )
+        
+        return {
+            "success": True,
+            "kasm_id": kasm_id,
+            "status": result.get("status"),
+            "operational_status": result.get("operational_status"),
+            "session_url": result.get("kasm_url"),
+            "created_time": result.get("created_time"),
+            "last_activity": result.get("last_activity")
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get session status: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to get session status: {str(e)}"
+        }
+
+
+# File Operation Tools
+@mcp.tool()
+async def read_kasm_file(
+    kasm_id: str,
+    file_path: str
+) -> dict:
+    """Read a file from a Kasm session.
+    
+    Args:
+        kasm_id: ID of the Kasm session
+        file_path: Path to the file to read
+        
+    Returns:
+        File content
+    """
+    if not kasm_client or not roots_validator:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        # Validate file path
+        roots_validator.validate_file_operation(file_path, operation="read")
+        
+        # Use cat command to read file
+        command = f"cat '{file_path}'"
+        user_id = os.getenv("KASM_USER_ID", "default")
+        
+        result = await kasm_client.exec_command(
+            kasm_id=kasm_id,
+            user_id=user_id,
+            command=command
+        )
+        
+        if result.get("exit_code") == 0:
+            return {
+                "success": True,
+                "file_path": file_path,
+                "content": result.get("output", ""),
+                "size": len(result.get("output", ""))
+            }
+        else:
+            return {
+                "success": False,
+                "error": f"Failed to read file: {result.get('error', 'Unknown error')}"
+            }
+            
+    except SecurityError as e:
+        logger.warning(f"Security violation reading file: {e}")
+        return {
+            "success": False,
+            "error": f"Security violation: {str(e)}",
+            "error_type": "security"
+        }
+    except Exception as e:
+        logger.error(f"Failed to read file: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to read file: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def write_kasm_file(
+    kasm_id: str,
+    file_path: str,
+    content: str
+) -> dict:
+    """Write content to a file in a Kasm session.
+    
+    Args:
+        kasm_id: ID of the Kasm session
+        file_path: Path where the file should be written
+        content: Content to write to the file
+        
+    Returns:
+        Write operation result
+    """
+    if not kasm_client or not roots_validator:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        # Validate file path
+        roots_validator.validate_file_operation(file_path, operation="write")
+        
+        # Encode content to base64 to handle special characters
+        import base64
+        encoded_content = base64.b64encode(content.encode()).decode()
+        
+        # Create directory if needed and write file
+        commands = [
+            f"mkdir -p $(dirname '{file_path}')",
+            f"echo '{encoded_content}' | base64 -d > '{file_path}'"
+        ]
+        
+        user_id = os.getenv("KASM_USER_ID", "default")
+        
+        for command in commands:
+            result = await kasm_client.exec_command(
+                kasm_id=kasm_id,
+                user_id=user_id,
+                command=command
+            )
+            
+            if result.get("exit_code") != 0:
+                return {
+                    "success": False,
+                    "error": f"Failed to write file: {result.get('error', 'Unknown error')}"
+                }
+        
+        return {
+            "success": True,
+            "file_path": file_path,
+            "size": len(content),
+            "message": f"File written successfully to {file_path}"
+        }
+            
+    except SecurityError as e:
+        logger.warning(f"Security violation writing file: {e}")
+        return {
+            "success": False,
+            "error": f"Security violation: {str(e)}",
+            "error_type": "security"
+        }
+    except Exception as e:
+        logger.error(f"Failed to write file: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to write file: {str(e)}"
+        }
+
+
+# Admin Tools
+@mcp.tool()
+async def get_available_workspaces() -> dict:
+    """Get list of available workspace images.
+    
+    Returns:
+        List of available workspace configurations
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        result = await kasm_client.get_workspaces()
+        
+        # Extract relevant workspace information
+        workspaces = []
+        for workspace in result.get("workspaces", []):
+            workspaces.append({
+                "image_name": workspace.get("image_name"),
+                "friendly_name": workspace.get("friendly_name"),
+                "description": workspace.get("description"),
+                "enabled": workspace.get("enabled"),
+                "cores": workspace.get("cores"),
+                "memory": workspace.get("memory"),
+                "gpu_count": workspace.get("gpu_count", 0),
+                "categories": workspace.get("categories", [])
+            })
+        
+        return {
+            "success": True,
+            "workspaces": workspaces,
+            "count": len(workspaces)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get available workspaces: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to get workspaces: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def get_kasm_users() -> dict:
+    """Get list of Kasm users.
+    
+    Returns:
+        List of users in the Kasm system
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        result = await kasm_client.get_users()
+        
+        # Extract relevant user information
+        users = []
+        for user in result.get("users", []):
+            users.append({
+                "user_id": user.get("user_id"),
+                "username": user.get("username"),
+                "first_name": user.get("first_name"),
+                "last_name": user.get("last_name"),
+                "email": user.get("email"),
+                "enabled": user.get("enabled"),
+                "locked": user.get("locked"),
+                "last_session": user.get("last_session"),
+                "groups": user.get("groups", [])
+            })
+        
+        return {
+            "success": True,
+            "users": users,
+            "count": len(users)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get users: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to get users: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def create_kasm_user(
+    username: str,
+    password: str,
+    first_name: str = "",
+    last_name: str = ""
+) -> dict:
+    """Create a new user account in the Kasm system.
+    
+    Args:
+        username: Username for the new user
+        password: Password for the new user
+        first_name: User's first name (optional)
+        last_name: User's last name (optional)
+        
+    Returns:
+        User creation result
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        result = await kasm_client.create_user(
+            username=username,
+            password=password,
+            first_name=first_name,
+            last_name=last_name
+        )
+        
+        return {
+            "success": True,
+            "user_id": result.get("user_id"),
+            "username": username,
+            "message": f"User '{username}' created successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to create user: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to create user: {str(e)}"
+        }
+
+
+async def main():
+    """Main entry point for the MCP server."""
+    try:
+        # Initialize clients
+        initialize_clients()
+        
+        # Run the FastMCP server
+        await mcp.run()
+        
     except Exception as e:
         logger.error(f"Server error: {e}")
-        sys.exit(1)
+        raise
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
