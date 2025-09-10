@@ -6,81 +6,109 @@
 3. [Data Flow](#data-flow)
 4. [Security Architecture](#security-architecture)
 5. [Deployment Architecture](#deployment-architecture)
+6. [Tool Implementation](#tool-implementation)
 
 ## System Overview
 
-The Kasm MCP Server acts as a bridge between AI agents (like Cline) and Kasm Workspaces, providing secure, programmatic access to containerized desktop environments.
+The Kasm MCP Server V2 acts as a bridge between AI agents (like Cline) and Kasm Workspaces, providing secure, programmatic access to containerized desktop environments through the Model Context Protocol.
 
 ### High-Level Architecture
 
 ```mermaid
 graph TB
     subgraph "AI Layer"
-        A[AI Agent/Cline]
+        A[AI Agent/Cline/LLM]
     end
     
-    subgraph "MCP Layer"
+    subgraph "MCP Protocol Layer"
         B[MCP Client]
-        C[MCP Server]
-        D[Security Layer]
-        E[Tool Registry]
+        C[FastMCP Server]
     end
     
-    subgraph "Integration Layer"
+    subgraph "Application Layer"
+        D[Tool Functions]
+        E[Security Layer]
         F[Kasm API Client]
-        G[Authentication]
     end
     
     subgraph "Kasm Platform"
-        H[Kasm API]
-        I[Container Manager]
-        J[Workspace Sessions]
+        G[Kasm API]
+        H[Container Manager]
+        I[Workspace Sessions]
     end
     
-    A <-->|MCP Protocol| B
-    B <-->|HTTP+SSE| C
+    A <-->|JSON-RPC 2.0| B
+    B <-->|stdio| C
     C --> D
-    C --> E
+    D --> E
     E --> F
-    F --> G
-    G <-->|REST API| H
+    F <-->|HTTPS/REST| G
+    G --> H
     H --> I
-    I --> J
 ```
 
 ## Component Architecture
 
-### Detailed Component Diagram
+### Core Components
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         Kasm MCP Server                              │
+│                      Kasm MCP Server V2                             │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────┐   │
-│  │   MCP Server    │  │  Tool Registry   │  │ Security Layer   │   │
-│  │                 │  │                  │  │                  │   │
-│  │ - HTTP+SSE      │  │ - Command Tools  │  │ - Roots Valid.   │   │
-│  │ - JSON-RPC      │  │ - Session Tools  │  │ - Path Check     │   │
-│  │ - Async Handler │  │ - Admin Tools    │  │ - Cmd Filter     │   │
-│  └────────┬────────┘  └────────┬─────────┘  └────────┬─────────┘   │
-│           │                    │                      │             │
-│           └────────────────────┴──────────────────────┘             │
-│                                │                                    │
-│  ┌─────────────────────────────┴────────────────────────────────┐  │
-│  │                      Core Engine                              │  │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │  │
-│  │  │ Request      │  │ Response     │  │ Error            │  │  │
-│  │  │ Handler      │  │ Formatter    │  │ Handler          │  │  │
-│  │  └──────────────┘  └──────────────┘  └──────────────────┘  │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│                                │                                    │
-│  ┌─────────────────────────────┴────────────────────────────────┐  │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                    FastMCP Server Core                       │   │
+│  │                    (src/server.py)                          │   │
+│  ├─────────────────────────────────────────────────────────────┤   │
+│  │                                                              │   │
+│  │  • FastMCP instance initialization                          │   │
+│  │  • Tool registration via @mcp.tool() decorators             │   │
+│  │  • Automatic JSON-RPC handling                              │   │
+│  │  • Built-in error management                                │   │
+│  │  • Stdio communication                                      │   │
+│  │                                                              │   │
+│  └──────────────────────────┬───────────────────────────────────┘   │
+│                              │                                       │
+│  ┌───────────────────────────▼───────────────────────────────────┐  │
+│  │                     Tool Functions                            │  │
+│  ├───────────────────────────────────────────────────────────────┤  │
+│  │                                                               │  │
+│  │  Session Management:        Command Execution:               │  │
+│  │  • create_kasm_session      • execute_kasm_command           │  │
+│  │  • destroy_kasm_session     • read_kasm_file                 │  │
+│  │  • get_session_status       • write_kasm_file                │  │
+│  │                                                               │  │
+│  │  Admin Functions:           Utility Functions:               │  │
+│  │  • get_available_workspaces • list_active_sessions           │  │
+│  │  • get_kasm_users           • get_session_info              │  │
+│  │  • create_kasm_user                                          │  │
+│  │                                                               │  │
+│  └──────────────────────────┬────────────────────────────────────┘  │
+│                              │                                       │
+│  ┌───────────────────────────▼───────────────────────────────────┐  │
+│  │               Security & Validation Layer                     │  │
+│  │                (src/security/roots.py)                        │  │
+│  ├───────────────────────────────────────────────────────────────┤  │
+│  │                                                               │  │
+│  │  • MCP Roots enforcement                                      │  │
+│  │  • Path validation and sanitization                          │  │
+│  │  • Command filtering (blocked commands)                      │  │
+│  │  • Input validation                                           │  │
+│  │  • Security boundary checks                                   │  │
+│  │                                                               │  │
+│  └──────────────────────────┬────────────────────────────────────┘  │
+│                              │                                       │
+│  ┌───────────────────────────▼───────────────────────────────────┐  │
 │  │                    Kasm API Client                            │  │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │  │
-│  │  │ Auth Manager │  │ API Wrapper  │  │ Connection Pool  │  │  │
-│  │  │ (SHA256)     │  │              │  │                  │  │  │
-│  │  └──────────────┘  └──────────────┘  └──────────────────┘  │  │
+│  │                 (src/kasm_api/client.py)                      │  │
+│  ├───────────────────────────────────────────────────────────────┤  │
+│  │                                                               │  │
+│  │  • SHA256 HMAC authentication                                 │  │
+│  │  • Request signing and verification                          │  │
+│  │  • Connection management                                      │  │
+│  │  • Error handling and retries                                │  │
+│  │  • Response parsing                                           │  │
+│  │                                                               │  │
 │  └───────────────────────────────────────────────────────────────┘  │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
@@ -88,39 +116,37 @@ graph TB
 
 ### Component Descriptions
 
-#### 1. MCP Server (`src/server.py`)
-- **Purpose**: Main entry point using official MCP SDK
-- **Implementation**: Uses FastMCP from the official SDK
-- **Responsibilities**:
-  - Tool registration via decorators
-  - Automatic protocol handling
-  - Built-in request/response management
-  - Connection handling via SDK
+#### 1. FastMCP Server Core (`src/server.py`)
+- **Framework**: Uses FastMCP from the official MCP SDK
+- **Initialization**: Simple `mcp = FastMCP(name="Kasm MCP Server")`
+- **Tool Registration**: Decorators for clean tool definitions
+- **Communication**: Handles stdio JSON-RPC automatically
+- **Main Loop**: `mcp.run()` handles all protocol communication
 
-#### 2. Tool Registry
-- **Purpose**: Tools defined directly in server.py
-- **Implementation**: Using @mcp.tool() decorators
-- **Tools**:
-  - Command execution with security validation
-  - Session management (create, destroy, status)
-  - File operations (read, write)
-  - Admin functions (users, workspaces)
+#### 2. Tool Functions
+Tools are defined as decorated async functions:
+
+```python
+@mcp.tool()
+async def create_kasm_session(
+    image_name: str,
+    user_id: Optional[str] = None,
+    enable_sharing: bool = False
+) -> dict:
+    """Create a new Kasm workspace session."""
+    # Implementation
+```
 
 #### 3. Security Layer (`src/security/`)
-- **Purpose**: Enforces security boundaries
-- **Components**:
-  - `roots.py`: MCP Roots implementation
-  - Path validation
-  - Command filtering
-  - Input sanitization
+- **roots.py**: Implements MCP Roots specification
+- **Validation**: Path and command validation
+- **Filtering**: Blocks dangerous commands
+- **Boundaries**: Enforces workspace isolation
 
 #### 4. Kasm API Client (`src/kasm_api/`)
-- **Purpose**: Interfaces with Kasm Workspaces API
-- **Features**:
-  - SHA256 authentication
-  - Connection pooling
-  - Error handling
-  - Request/response mapping
+- **client.py**: Handles all Kasm API interactions
+- **Authentication**: SHA256 HMAC signing
+- **Methods**: Wraps all Kasm API endpoints
 
 ## Data Flow
 
@@ -129,54 +155,51 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant AI as AI Agent
-    participant MC as MCP Client
-    participant MS as MCP Server
-    participant SL as Security Layer
-    participant TL as Tool
-    participant KC as Kasm Client
-    participant KA as Kasm API
+    participant MCP as FastMCP Server
+    participant Tool as Tool Function
+    participant Sec as Security Layer
+    participant API as Kasm API Client
+    participant Kasm as Kasm Platform
 
-    AI->>MC: Natural language request
-    MC->>MS: MCP tool call
-    MS->>MS: Parse request
-    MS->>SL: Validate request
-    SL->>SL: Check security rules
-    SL-->>MS: Validation result
+    AI->>MCP: JSON-RPC tool call
+    MCP->>MCP: Parse & validate request
+    MCP->>Tool: Execute tool function
+    Tool->>Sec: Validate security constraints
     
-    alt Validation passed
-        MS->>TL: Execute tool
-        TL->>KC: Prepare API call
-        KC->>KC: Generate auth hash
-        KC->>KA: API request
-        KA-->>KC: API response
-        KC-->>TL: Processed result
-        TL-->>MS: Tool result
-        MS-->>MC: MCP response
-        MC-->>AI: Formatted result
-    else Validation failed
-        MS-->>MC: Security error
-        MC-->>AI: Error message
+    alt Security check passed
+        Sec-->>Tool: Validation OK
+        Tool->>API: Prepare API request
+        API->>API: Generate auth signature
+        API->>Kasm: HTTPS API call
+        Kasm-->>API: API response
+        API-->>Tool: Parsed result
+        Tool-->>MCP: Tool result
+        MCP-->>AI: JSON-RPC response
+    else Security check failed
+        Sec-->>Tool: Security error
+        Tool-->>MCP: Error result
+        MCP-->>AI: Error response
     end
 ```
 
-### Session Creation Flow
+### Session Lifecycle
 
 ```mermaid
 stateDiagram-v2
-    [*] --> RequestReceived
-    RequestReceived --> ValidateParams
-    ValidateParams --> CheckPermissions
-    CheckPermissions --> PrepareAPICall
-    PrepareAPICall --> AuthenticateRequest
-    AuthenticateRequest --> SendToKasm
-    SendToKasm --> WaitForResponse
-    WaitForResponse --> ProcessResponse
-    ProcessResponse --> ReturnSessionInfo
-    ReturnSessionInfo --> [*]
+    [*] --> Created: create_kasm_session
+    Created --> Initializing: API request sent
+    Initializing --> Running: Container started
+    Running --> Executing: execute_kasm_command
+    Executing --> Running: Command complete
+    Running --> Reading: read_kasm_file
+    Reading --> Running: File read
+    Running --> Writing: write_kasm_file
+    Writing --> Running: File written
+    Running --> Destroyed: destroy_kasm_session
+    Destroyed --> [*]
     
-    ValidateParams --> [*]: Invalid params
-    CheckPermissions --> [*]: Insufficient permissions
-    SendToKasm --> [*]: API error
+    Running --> Error: Session timeout
+    Error --> [*]
 ```
 
 ## Security Architecture
@@ -185,245 +208,262 @@ stateDiagram-v2
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    External Requests                         │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                 Layer 1: Transport Security                  │
-│                                                              │
-│  • HTTP+SSE with optional TLS                               │
-│  • Connection authentication                                 │
-│  • Rate limiting                                            │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Layer 2: Protocol Validation                    │
-│                                                              │
-│  • MCP protocol compliance                                   │
-│  • Schema validation                                         │
-│  • Input sanitization                                        │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Layer 3: Application Security                   │
-│                                                              │
+│                    Input Layer                               │
+│  • JSON-RPC request validation                              │
+│  • Parameter type checking                                   │
+│  • Schema validation                                        │
+└──────────────────────────┬───────────────────────────────────┘
+                           │
+┌──────────────────────────▼───────────────────────────────────┐
+│                 Application Security                         │
 │  • MCP Roots enforcement                                     │
-│  • Command filtering                                         │
-│  • Path validation                                          │
-│  • Blocked command list                                     │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│               Layer 4: API Security                          │
-│                                                              │
-│  • SHA256 authentication                                     │
-│  • API key management                                        │
+│  • Path traversal prevention                                │
+│  • Command injection prevention                             │
+│  • Blocked command filtering                                │
+└──────────────────────────┬───────────────────────────────────┘
+                           │
+┌──────────────────────────▼───────────────────────────────────┐
+│                    API Security                              │
+│  • SHA256 HMAC authentication                               │
 │  • Request signing                                          │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│            Layer 5: Container Isolation                      │
-│                                                              │
-│  • Kasm container boundaries                                 │
-│  • Resource isolation                                        │
-│  • Network segmentation                                      │
+│  • TLS/HTTPS transport                                      │
+│  • API key management                                       │
+└──────────────────────────┬───────────────────────────────────┘
+                           │
+┌──────────────────────────▼───────────────────────────────────┐
+│                Container Isolation                           │
+│  • Kasm workspace boundaries                                │
+│  • User permission model                                    │
+│  • Resource isolation                                       │
+│  • Network segmentation                                     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Trust Boundaries
+### Security Rules
 
-```mermaid
-graph TB
-    subgraph "Untrusted Zone"
-        A[External Network]
-        B[AI Agent Requests]
-    end
-    
-    subgraph "Semi-Trusted Zone"
-        C[MCP Server]
-        D[Input Validation]
-        E[Security Filters]
-    end
-    
-    subgraph "Trusted Zone"
-        F[Kasm API Client]
-        G[Authenticated Requests]
-    end
-    
-    subgraph "Isolated Zone"
-        H[Kasm Containers]
-        I[User Workspaces]
-    end
-    
-    A --> B
-    B -->|Validate| C
-    C --> D
-    D --> E
-    E -->|Sanitized| F
-    F --> G
-    G -->|Authorized| H
-    H --> I
-    
-    style A fill:#ff6666
-    style B fill:#ff6666
-    style C fill:#ffff66
-    style D fill:#ffff66
-    style E fill:#ffff66
-    style F fill:#66ff66
-    style G fill:#66ff66
-    style H fill:#6666ff
-    style I fill:#6666ff
+#### Blocked Commands
+The following commands are blocked for security:
+```python
+BLOCKED_COMMANDS = [
+    'rm -rf /', 'dd', 'mkfs', 'format',
+    'fdisk', 'parted', 'shutdown', 'reboot',
+    'init', 'systemctl', 'service', 'kill -9',
+    'killall', 'pkill'
+]
 ```
+
+#### Path Validation
+- All paths must be within allowed roots
+- No path traversal (../) allowed
+- Symbolic links are resolved and validated
 
 ## Deployment Architecture
 
-### Docker Deployment
+### Installation Methods
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      Host System                             │
+│                   Installation Options                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │                 Docker Engine                        │   │
-│  ├─────────────────────────────────────────────────────┤   │
-│  │                                                      │   │
-│  │  ┌───────────────────────────────────────────┐     │   │
-│  │  │         kasm-mcp-server-v2:latest         │     │   │
-│  │  ├───────────────────────────────────────────┤     │   │
-│  │  │                                           │     │   │
-│  │  │  • Python 3.11 Runtime                   │     │   │
-│  │  │  • MCP Server Application                │     │   │
-│  │  │  • Non-root user (mcp-user)             │     │   │
-│  │  │  • Port 8080 exposed                     │     │   │
-│  │  │                                           │     │   │
-│  │  │  Volumes:                                │     │   │
-│  │  │  - ./certs:/home/mcp-user/certs:ro      │     │   │
-│  │  │                                           │     │   │
-│  │  │  Environment:                            │     │   │
-│  │  │  - KASM_API_URL                         │     │   │
-│  │  │  - KASM_API_KEY                         │     │   │
-│  │  │  - KASM_API_SECRET                      │     │   │
-│  │  │  - ALLOWED_ROOTS                        │     │   │
-│  │  └───────────────────────────────────────────┘     │   │
-│  │                                                      │   │
-│  │  ┌───────────────────────────────────────────┐     │   │
-│  │  │           mcp-network (bridge)            │     │   │
-│  │  └───────────────────────────────────────────┘     │   │
-│  │                                                      │   │
-│  └─────────────────────────────────────────────────────┘   │
+│  1. Direct Python Installation                              │
+│     └─> Virtual environment + pip install                   │
 │                                                              │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │                    systemd                           │   │
-│  │  • kasm-mcp-server-v2.service                      │   │
-│  │  • Auto-restart on failure                         │   │
-│  │  • Logging to journal                              │   │
-│  └─────────────────────────────────────────────────────┘   │
+│  2. NPM Package Installation                                 │
+│     └─> npm install kasm-mcp-server                        │
+│                                                              │
+│  3. Docker Container                                        │
+│     └─> docker run kasm-mcp-server:latest                  │
+│                                                              │
+│  4. Automated Script                                        │
+│     └─> ./setup-prerequisites.sh                           │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Network Architecture
+### Docker Architecture
+
+```yaml
+Container Structure:
+├── Base Image: python:3.11-slim
+├── Working Directory: /app
+├── User: mcp-user (non-root)
+├── Exposed Port: None (stdio communication)
+├── Entry Point: python src/server.py
+└── Environment Variables:
+    ├── KASM_API_URL
+    ├── KASM_API_KEY
+    ├── KASM_API_SECRET
+    └── LOG_LEVEL
+```
+
+### Production Deployment
 
 ```mermaid
-graph LR
-    subgraph "Client Network"
-        A[AI Agent]
+graph TB
+    subgraph "Client Environment"
+        A[VS Code + Cline]
+        B[Claude Desktop]
+        C[Other LLMs]
     end
     
-    subgraph "DMZ"
-        B[Load Balancer<br/>Optional]
-        C[Firewall Rules<br/>Port 8080]
+    subgraph "Server Environment"
+        D[MCP Server Process]
+        E[Python Virtual Env]
+        F[Environment Config]
     end
     
-    subgraph "Application Network"
-        D[MCP Server<br/>Container]
-        E[Health Check<br/>Endpoint]
+    subgraph "Kasm Infrastructure"
+        G[Kasm API Gateway]
+        H[Workspace Manager]
+        I[Container Orchestrator]
     end
     
-    subgraph "Backend Network"
-        F[Kasm API<br/>Endpoint]
-        G[Kasm<br/>Workspaces]
-    end
-    
-    A -->|HTTPS| B
-    B --> C
+    A --> D
+    B --> D
     C --> D
     D --> E
-    D -->|HTTPS| F
-    F --> G
-    
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style D fill:#9f9,stroke:#333,stroke-width:2px
-    style F fill:#99f,stroke:#333,stroke-width:2px
+    E --> F
+    D --> G
+    G --> H
+    H --> I
 ```
 
-## Scalability Considerations
+## Tool Implementation
 
-### Horizontal Scaling
+### Tool Categories
 
+#### 1. Session Management Tools
+
+```python
+# Tool: create_kasm_session
+Purpose: Creates new isolated workspace containers
+Parameters:
+  - image_name: Docker image for the workspace
+  - user_id: Optional user identifier
+  - enable_sharing: Allow session sharing
+Returns: Session details including kasm_id, URL
+
+# Tool: destroy_kasm_session
+Purpose: Terminates an active workspace
+Parameters:
+  - kasm_id: Session identifier
+Returns: Confirmation of termination
+
+# Tool: get_session_status
+Purpose: Retrieves current session state
+Parameters:
+  - kasm_id: Session identifier
+Returns: Status information
 ```
-                    ┌─────────────────┐
-                    │  Load Balancer  │
-                    └────────┬─────────┘
-                             │
-        ┌────────────────────┼────────────────────┐
-        │                    │                    │
-┌───────▼──────┐    ┌────────▼──────┐    ┌───────▼──────┐
-│ MCP Server 1 │    │ MCP Server 2  │    │ MCP Server N │
-│              │    │               │    │              │
-│ Container    │    │ Container     │    │ Container    │
-└───────┬──────┘    └────────┬──────┘    └───────┬──────┘
-        │                    │                    │
-        └────────────────────┼────────────────────┘
-                             │
-                    ┌────────▼─────────┐
-                    │   Kasm API       │
-                    │   (Shared)       │
-                    └──────────────────┘
+
+#### 2. Command Execution Tools
+
+```python
+# Tool: execute_kasm_command
+Purpose: Runs commands inside workspace
+Parameters:
+  - kasm_id: Session identifier
+  - command: Shell command to execute
+  - working_dir: Optional working directory
+Security: Command filtering, path validation
+Returns: Command output (stdout, stderr, exit_code)
+
+# Tool: read_kasm_file
+Purpose: Reads file contents from workspace
+Parameters:
+  - kasm_id: Session identifier
+  - file_path: Path to file
+Security: Path validation, size limits
+Returns: File contents
+
+# Tool: write_kasm_file
+Purpose: Creates/updates files in workspace
+Parameters:
+  - kasm_id: Session identifier
+  - file_path: Path to file
+  - content: File contents
+Security: Path validation, content sanitization
+Returns: Write confirmation
 ```
 
-### Performance Optimization
+#### 3. Administrative Tools
 
-1. **Connection Pooling**: Reuse Kasm API connections
-2. **Async Operations**: Non-blocking I/O for all operations
-3. **Caching**: Cache workspace lists and user information
-4. **Rate Limiting**: Prevent API exhaustion
-5. **Health Checks**: Automatic failover support
+```python
+# Tool: get_available_workspaces
+Purpose: Lists available workspace images
+Returns: List of images with metadata
+
+# Tool: get_kasm_users
+Purpose: Retrieves user information
+Returns: User list with permissions
+
+# Tool: create_kasm_user
+Purpose: Provisions new user accounts
+Parameters:
+  - username: User identifier
+  - password: User password
+  - groups: Group memberships
+Returns: User creation confirmation
+```
+
+## Performance Considerations
+
+### Optimization Strategies
+
+1. **Async Operations**: All tools use async/await for non-blocking I/O
+2. **Connection Reuse**: Single Kasm API client instance
+3. **Error Recovery**: Automatic retry with exponential backoff
+4. **Resource Management**: Proper cleanup of sessions
+5. **Logging**: Configurable log levels for debugging
+
+### Scalability
+
+- **Stateless Design**: Server maintains no session state
+- **Horizontal Scaling**: Multiple server instances supported
+- **Load Distribution**: Can work with load balancers
+- **Resource Limits**: Configurable limits per session
 
 ## Monitoring and Observability
 
-### Metrics Collection Points
+### Logging
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Application Metrics                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Request Metrics:           Security Metrics:               │
-│  • Request count           • Blocked commands               │
-│  • Response time           • Path violations                │
-│  • Error rate              • Auth failures                  │
-│  • Tool usage              • Rate limit hits                │
-│                                                              │
-│  System Metrics:           API Metrics:                     │
-│  • CPU usage               • API call count                 │
-│  • Memory usage            • API response time              │
-│  • Connection count        • API error rate                 │
-│  • Thread pool size        • Auth hash generation time      │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+```python
+Log Levels:
+- DEBUG: Detailed protocol messages
+- INFO: Tool executions and results
+- WARNING: Security violations, rate limits
+- ERROR: API failures, exceptions
 ```
 
-## Future Architecture Considerations
+### Metrics
 
-1. **Message Queue Integration**: For async operations
-2. **Database Backend**: For audit logging and state management
-3. **Multi-Region Support**: Geographic distribution
-4. **WebSocket Support**: Real-time bidirectional communication
-5. **Plugin Architecture**: Extensible tool system
+Key metrics to monitor:
+- Tool execution count
+- Average response time
+- Error rate by tool
+- Security violation count
+- Active session count
+
+## Future Enhancements
+
+1. **WebSocket Support**: Real-time session monitoring
+2. **Batch Operations**: Multiple session management
+3. **Template System**: Pre-configured workspace templates
+4. **Audit Trail**: Comprehensive activity logging
+5. **Resource Quotas**: Per-user resource limits
+6. **Session Persistence**: Save and restore workspace state
+7. **Multi-Factor Auth**: Enhanced security options
+8. **Webhook Integration**: Event-driven notifications
+
+## Conclusion
+
+The Kasm MCP Server V2 provides a secure, scalable bridge between AI systems and Kasm Workspaces. The architecture emphasizes:
+
+- **Simplicity**: Using FastMCP for protocol handling
+- **Security**: Multiple validation layers
+- **Flexibility**: Multiple deployment options
+- **Extensibility**: Easy to add new tools
+- **Reliability**: Error handling and recovery
+
+This design enables AI agents to safely and efficiently manage containerized workspaces while maintaining strict security boundaries.
