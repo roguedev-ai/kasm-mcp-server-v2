@@ -672,6 +672,150 @@ class KasmAPIClient:
         }
         
         return await self._make_request("POST", "/api/public/get_session_recordings", data)
+    
+    async def get_sessions_recordings(
+        self,
+        target_kasm_ids: List[str],
+        preauth_download_link: bool = False
+    ) -> Dict[str, Any]:
+        """Get session recordings for multiple Kasm sessions.
+        
+        Args:
+            target_kasm_ids: List of session IDs to get recordings for
+            preauth_download_link: Whether to include pre-authorized download links
+            
+        Returns:
+            Dictionary of session recordings organized by session ID
+        """
+        data = {
+            "target_kasm_ids": target_kasm_ids,
+            "preauth_download_link": preauth_download_link
+        }
+        
+        return await self._make_request("POST", "/api/public/get_sessions_recordings", data)
+    
+    # Group Management Methods
+    
+    async def add_user_to_group(
+        self,
+        user_id: str,
+        group_id: str
+    ) -> Dict[str, Any]:
+        """Add a user to an existing group.
+        
+        Args:
+            user_id: User ID to add to the group
+            group_id: Group ID to add the user to
+            
+        Returns:
+            Operation result
+        """
+        data = {
+            "target_user": {
+                "user_id": user_id
+            },
+            "target_group": {
+                "group_id": group_id
+            }
+        }
+        
+        return await self._make_request("POST", "/api/public/add_user_group", data)
+    
+    async def remove_user_from_group(
+        self,
+        user_id: str,
+        group_id: str
+    ) -> Dict[str, Any]:
+        """Remove a user from an existing group.
+        
+        Args:
+            user_id: User ID to remove from the group
+            group_id: Group ID to remove the user from
+            
+        Returns:
+            Operation result
+        """
+        data = {
+            "target_user": {
+                "user_id": user_id
+            },
+            "target_group": {
+                "group_id": group_id
+            }
+        }
+        
+        return await self._make_request("POST", "/api/public/remove_user_group", data)
+    
+    # Login/Authentication Methods
+    
+    async def get_login_link(
+        self,
+        user_id: str
+    ) -> Dict[str, Any]:
+        """Generate a login link for a user to login without username/password.
+        
+        Args:
+            user_id: User ID to generate login link for
+            
+        Returns:
+            Dictionary containing the login URL
+        """
+        data = {
+            "target_user": {
+                "user_id": user_id
+            }
+        }
+        
+        return await self._make_request("POST", "/api/public/get_login", data)
+    
+    # Licensing Methods
+    
+    async def activate_license(
+        self,
+        activation_key: str,
+        seats: Optional[int] = None,
+        issued_to: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Activate a Kasm deployment license.
+        
+        Args:
+            activation_key: The activation key provided by Kasm Technologies
+            seats: Number of seats to license (optional, uses max if not specified)
+            issued_to: Organization name for the license
+            
+        Returns:
+            License details including features and expiration
+        """
+        data = {
+            "activation_key": activation_key
+        }
+        
+        if seats is not None:
+            data["seats"] = seats
+        if issued_to is not None:
+            data["issued_to"] = issued_to
+            
+        return await self._make_request("POST", "/api/public/activate", data)
+    
+    # Deployment Zone Methods
+    
+    async def get_zones(
+        self,
+        brief: bool = False
+    ) -> Dict[str, Any]:
+        """Get a list of deployment zones.
+        
+        Args:
+            brief: Limit the information returned for each zone
+            
+        Returns:
+            List of deployment zones
+        """
+        data = {}
+        if brief:
+            data["brief"] = brief
+            
+        return await self._make_request("POST", "/api/public/get_zones", data)
         
     # Synchronous wrapper methods for backward compatibility
     
