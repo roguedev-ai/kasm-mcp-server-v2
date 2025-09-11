@@ -3,7 +3,7 @@
 import json
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 
 import aiohttp
@@ -143,6 +143,9 @@ class KasmAPIClient:
         """
         import re
         
+        # Log input parameters
+        logger.info(f"Session creation request - image_name: {image_name}, user_id: {user_id}, group_id: {group_id}")
+        
         # Detect if the input is a UUID (image_id) or a Docker image name
         uuid_pattern = re.compile(r'^[a-f0-9]{32}$|^[a-f0-9]{8}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{12}$', re.IGNORECASE)
         
@@ -160,30 +163,53 @@ class KasmAPIClient:
             
             try:
                 # Try with image_id first
-                logger.debug(f"Attempting session creation with image_id: {data['image_id']}")
-                return await self._make_request("POST", "/api/public/request_kasm", data)
+                logger.info(f"Attempting session creation with parameters: {json.dumps(data, indent=2)}")
+                result = await self._make_request("POST", "/api/public/request_kasm", data)
+                logger.info(f"Session created successfully: {json.dumps(result, indent=2)}")
+                return result
             except Exception as e:
                 # If that fails, try with image_name as fallback
-                logger.warning(f"Failed with image_id, trying image_name: {e}")
+                logger.warning(f"Failed with image_id ({data['image_id']}), error: {str(e)}")
+                logger.info("Retrying with image_name parameter instead...")
                 del data["image_id"]
                 data["image_name"] = image_name
-                return await self._make_request("POST", "/api/public/request_kasm", data)
+                
+                try:
+                    logger.info(f"Attempting session creation with parameters: {json.dumps(data, indent=2)}")
+                    result = await self._make_request("POST", "/api/public/request_kasm", data)
+                    logger.info(f"Session created successfully with image_name: {json.dumps(result, indent=2)}")
+                    return result
+                except Exception as e2:
+                    logger.error(f"Failed with image_name as well: {str(e2)}")
+                    raise e2
         else:
             # It's a Docker image name like "kasmweb/chrome:1.8.0"
             data["image_name"] = image_name
             
             try:
                 # Try with image_name
-                logger.debug(f"Attempting session creation with image_name: {data['image_name']}")
-                return await self._make_request("POST", "/api/public/request_kasm", data)
+                logger.info(f"Attempting session creation with parameters: {json.dumps(data, indent=2)}")
+                result = await self._make_request("POST", "/api/public/request_kasm", data)
+                logger.info(f"Session created successfully: {json.dumps(result, indent=2)}")
+                return result
             except Exception as e:
                 # If the image name looks like it might be an ID without hyphens, try that
                 if re.match(r'^[a-f0-9]{32}$', image_name, re.IGNORECASE):
-                    logger.warning(f"Failed with image_name, trying as image_id: {e}")
+                    logger.warning(f"Failed with image_name ({data['image_name']}), error: {str(e)}")
+                    logger.info("Detected possible unhyphenated UUID, retrying as image_id...")
                     del data["image_name"]
                     data["image_id"] = image_name
-                    return await self._make_request("POST", "/api/public/request_kasm", data)
+                    
+                    try:
+                        logger.info(f"Attempting session creation with parameters: {json.dumps(data, indent=2)}")
+                        result = await self._make_request("POST", "/api/public/request_kasm", data)
+                        logger.info(f"Session created successfully with image_id: {json.dumps(result, indent=2)}")
+                        return result
+                    except Exception as e2:
+                        logger.error(f"Failed with image_id as well: {str(e2)}")
+                        raise e2
                 else:
+                    logger.error(f"Session creation failed: {str(e)}")
                     raise
         
     async def destroy_kasm(self, kasm_id: str, user_id: str) -> Dict[str, Any]:
