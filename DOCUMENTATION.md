@@ -144,91 +144,40 @@ Add to your Cline MCP settings:
 
 ## Available Tools
 
-### 1. execute_kasm_command
-Execute shell commands inside a Kasm session.
+The server provides **21 tools** for comprehensive Kasm Workspaces management. For complete details, see the [Tool Reference](TOOL_REFERENCE.md).
 
-**Parameters:**
-- `kasm_id` (string): ID of the Kasm session
-- `user_id` (string): User ID owning the session
-- `command` (string): Command to execute
-- `working_dir` (string, optional): Working directory
+**Important Note:** The `user_id` parameter is automatically obtained from the `KASM_USER_ID` environment variable and is NOT required as an input parameter for most tools.
 
-**Example:**
-```json
-{
-  "kasm_id": "abc123",
-  "user_id": "user123",
-  "command": "ls -la",
-  "working_dir": "/home/kasm_user"
-}
-```
+### Session Management (8 tools)
+1. **create_kasm_session** - Launch a new workspace
+2. **destroy_kasm_session** - Terminate a session
+3. **get_session_status** - Check session status
+4. **list_user_sessions** - List your active sessions
+5. **list_all_sessions** - List all system sessions (admin)
+6. **pause_kasm_session** - Pause a session to free resources
+7. **resume_kasm_session** - Resume a paused session
+8. **get_session_screenshot** - Capture session screenshot
 
-### 2. create_kasm_session
-Launch a new Kasm session.
+### Command & File Operations (3 tools)
+9. **execute_kasm_command** - Execute shell commands
+10. **read_kasm_file** - Read file contents
+11. **write_kasm_file** - Write content to files
 
-**Parameters:**
-- `image_name` (string): Workspace image name
-- `user_id` (string): User ID requesting the session
-- `group_id` (string): Group ID for the session
+### User Management (6 tools)
+12. **get_kasm_users** - List all users
+13. **create_kasm_user** - Create new user accounts
+14. **get_kasm_user** - Get specific user details
+15. **update_kasm_user** - Update user information
+16. **delete_kasm_user** - Remove users from system
+17. **logout_kasm_user** - Logout all user sessions
 
-**Example:**
-```json
-{
-  "image_name": "kasmweb/ubuntu-focal-desktop",
-  "user_id": "user123",
-  "group_id": "group123"
-}
-```
+### Monitoring & Performance (3 tools)
+18. **get_session_frame_stats** - Frame rendering statistics
+19. **get_session_bottleneck_stats** - CPU/network bottleneck analysis
+20. **get_session_recordings** - Access session recordings
 
-### 3. destroy_kasm_session
-Terminate an existing session.
-
-**Parameters:**
-- `kasm_id` (string): Session ID to destroy
-- `user_id` (string): User ID owning the session
-
-### 4. get_session_status
-Check session status.
-
-**Parameters:**
-- `kasm_id` (string): Session ID
-- `user_id` (string): User ID
-
-### 5. read_kasm_file
-Read file contents from a session.
-
-**Parameters:**
-- `kasm_id` (string): Session ID
-- `user_id` (string): User ID
-- `file_path` (string): Path to read
-
-### 6. write_kasm_file
-Write content to a file in a session.
-
-**Parameters:**
-- `kasm_id` (string): Session ID
-- `user_id` (string): User ID
-- `file_path` (string): Path to write
-- `content` (string): Content to write
-
-### 7. get_available_workspaces
-List available workspace images.
-
-**Parameters:** None
-
-### 8. get_kasm_users
-List system users.
-
-**Parameters:** None
-
-### 9. create_kasm_user
-Create a new user.
-
-**Parameters:**
-- `username` (string): Username
-- `password` (string): Password
-- `first_name` (string, optional): First name
-- `last_name` (string, optional): Last name
+### System Information (1 tool)
+21. **get_available_workspaces** - List available workspace images
 
 ## Security
 

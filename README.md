@@ -28,6 +28,8 @@ python -m src
 
 - **[Quick Start Guide](QUICK_START.md)** - Get up and running in 5 minutes
 - **[Installation Guide](INSTALLATION_GUIDE.md)** - Detailed installation instructions
+- **[Tool Reference](TOOL_REFERENCE.md)** - Complete reference for all 21 available tools
+- **[Suggested Prompts](PROMPTS.md)** - Example prompts for effective usage
 - **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Cline Integration Guide](CLINE_INTEGRATION_GUIDE.md)** - Configure Cline to use this MCP server
 - **[LLM Integration Guide](LLM_INTEGRATION_GUIDE.md)** - Integrate with any MCP-compatible LLM
@@ -45,19 +47,40 @@ python -m src
 
 ## 🛠️ Available Tools
 
-The server exposes the following tools for AI agents:
+The server provides **21 tools** organized into categories:
 
-| Tool | Description |
-|------|-------------|
-| `execute_kasm_command` | Execute shell commands in a Kasm session |
-| `create_kasm_session` | Launch a new Kasm workspace session |
-| `destroy_kasm_session` | Terminate an existing session |
-| `get_session_status` | Check the status of a session |
-| `read_kasm_file` | Read file contents from a session |
-| `write_kasm_file` | Write content to a file in a session |
-| `get_available_workspaces` | List available workspace images |
-| `get_kasm_users` | List users in the Kasm system |
-| `create_kasm_user` | Create a new Kasm user |
+### Session Management (8 tools)
+- `create_kasm_session` - Launch a new Kasm workspace
+- `destroy_kasm_session` - Terminate a session
+- `get_session_status` - Check session status
+- `list_user_sessions` - List your active sessions
+- `list_all_sessions` - List all system sessions (admin)
+- `pause_kasm_session` - Pause a session to free resources
+- `resume_kasm_session` - Resume a paused session
+- `get_session_screenshot` - Capture session screenshot
+
+### Command & File Operations (3 tools)
+- `execute_kasm_command` - Execute shell commands in sessions
+- `read_kasm_file` - Read file contents from sessions
+- `write_kasm_file` - Write content to files in sessions
+
+### User Management (6 tools)
+- `get_kasm_users` - List all users
+- `create_kasm_user` - Create new user accounts
+- `get_kasm_user` - Get specific user details
+- `update_kasm_user` - Update user information
+- `delete_kasm_user` - Remove users from system
+- `logout_kasm_user` - Logout all user sessions
+
+### Monitoring & Performance (3 tools)
+- `get_session_frame_stats` - Frame rendering statistics
+- `get_session_bottleneck_stats` - CPU/network bottleneck analysis
+- `get_session_recordings` - Access session recordings
+
+### System Information (1 tool)
+- `get_available_workspaces` - List available workspace images
+
+See the [Tool Reference](TOOL_REFERENCE.md) for complete details on all tools.
 
 ## 📦 Installation Options
 
