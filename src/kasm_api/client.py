@@ -282,7 +282,11 @@ class KasmAPIClient:
         username: str,
         password: str,
         first_name: str = "",
-        last_name: str = ""
+        last_name: str = "",
+        organization: str = "",
+        phone: str = "",
+        locked: bool = False,
+        disabled: bool = False
     ) -> Dict[str, Any]:
         """Create a new user.
         
@@ -291,18 +295,219 @@ class KasmAPIClient:
             password: Password for the new user
             first_name: User's first name
             last_name: User's last name
+            organization: User's organization
+            phone: User's phone number
+            locked: Whether the account is locked
+            disabled: Whether the account is disabled
             
         Returns:
             User creation response
         """
         data = {
-            "username": username,
-            "password": password,
-            "first_name": first_name,
-            "last_name": last_name
+            "target_user": {
+                "username": username,
+                "password": password,
+                "first_name": first_name,
+                "last_name": last_name,
+                "organization": organization,
+                "phone": phone,
+                "locked": locked,
+                "disabled": disabled
+            }
         }
         
         return await self._make_request("POST", "/api/public/create_user", data)
+    
+    async def get_user(
+        self,
+        user_id: Optional[str] = None,
+        username: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get a specific user's details.
+        
+        Args:
+            user_id: User ID to retrieve
+            username: Username to retrieve (alternative to user_id)
+            
+        Returns:
+            User details
+        """
+        if not user_id and not username:
+            raise ValueError("Either user_id or username must be provided")
+        
+        data = {
+            "target_user": {}
+        }
+        
+        if user_id:
+            data["target_user"]["user_id"] = user_id
+        if username:
+            data["target_user"]["username"] = username
+            
+        return await self._make_request("POST", "/api/public/get_user", data)
+    
+    async def update_user(
+        self,
+        user_id: str,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
+        organization: Optional[str] = None,
+        phone: Optional[str] = None,
+        locked: Optional[bool] = None,
+        disabled: Optional[bool] = None
+    ) -> Dict[str, Any]:
+        """Update an existing user.
+        
+        Args:
+            user_id: User ID to update
+            username: New username
+            password: New password
+            first_name: New first name
+            last_name: New last name
+            organization: New organization
+            phone: New phone number
+            locked: New locked status
+            disabled: New disabled status
+            
+        Returns:
+            Updated user details
+        """
+        data = {
+            "target_user": {
+                "user_id": user_id
+            }
+        }
+        
+        # Only include fields that are being updated
+        if username is not None:
+            data["target_user"]["username"] = username
+        if password is not None:
+            data["target_user"]["password"] = password
+        if first_name is not None:
+            data["target_user"]["first_name"] = first_name
+        if last_name is not None:
+            data["target_user"]["last_name"] = last_name
+        if organization is not None:
+            data["target_user"]["organization"] = organization
+        if phone is not None:
+            data["target_user"]["phone"] = phone
+        if locked is not None:
+            data["target_user"]["locked"] = locked
+        if disabled is not None:
+            data["target_user"]["disabled"] = disabled
+            
+        return await self._make_request("POST", "/api/public/update_user", data)
+    
+    async def delete_user(
+        self,
+        user_id: str,
+        force: bool = False
+    ) -> Dict[str, Any]:
+        """Delete an existing user.
+        
+        Args:
+            user_id: User ID to delete
+            force: Force deletion even if user has active sessions
+            
+        Returns:
+            Deletion response
+        """
+        data = {
+            "target_user": {
+                "user_id": user_id
+            },
+            "force": force
+        }
+        
+        return await self._make_request("POST", "/api/public/delete_user", data)
+    
+    async def logout_user(
+        self,
+        user_id: str
+    ) -> Dict[str, Any]:
+        """Logout all sessions for a user.
+        
+        Args:
+            user_id: User ID to logout
+            
+        Returns:
+            Logout response
+        """
+        data = {
+            "target_user": {
+                "user_id": user_id
+            }
+        }
+        
+        return await self._make_request("POST", "/api/public/logout_user", data)
+    
+    async def get_user_attributes(
+        self,
+        user_id: str
+    ) -> Dict[str, Any]:
+        """Get user attributes (preferences).
+        
+        Args:
+            user_id: User ID to get attributes for
+            
+        Returns:
+            User attributes
+        """
+        data = {
+            "target_user": {
+                "user_id": user_id
+            }
+        }
+        
+        return await self._make_request("POST", "/api/public/get_attributes", data)
+    
+    async def update_user_attributes(
+        self,
+        user_id: str,
+        auto_login_kasm: Optional[bool] = None,
+        default_image: Optional[str] = None,
+        show_tips: Optional[bool] = None,
+        toggle_control_panel: Optional[bool] = None,
+        ssh_public_key: Optional[str] = None,
+        chat_sfx: Optional[bool] = None
+    ) -> Dict[str, Any]:
+        """Update user attributes (preferences).
+        
+        Args:
+            user_id: User ID to update attributes for
+            auto_login_kasm: Auto-login to Kasm sessions
+            default_image: Default workspace image ID
+            show_tips: Show tips in UI
+            toggle_control_panel: Toggle control panel visibility
+            ssh_public_key: SSH public key for user
+            chat_sfx: Enable chat sound effects
+            
+        Returns:
+            Update response
+        """
+        data = {
+            "target_user_attributes": {
+                "user_id": user_id
+            }
+        }
+        
+        # Only include attributes that are being updated
+        if auto_login_kasm is not None:
+            data["target_user_attributes"]["auto_login_kasm"] = auto_login_kasm
+        if default_image is not None:
+            data["target_user_attributes"]["default_image"] = default_image
+        if show_tips is not None:
+            data["target_user_attributes"]["show_tips"] = show_tips
+        if toggle_control_panel is not None:
+            data["target_user_attributes"]["toggle_control_panel"] = toggle_control_panel
+        if ssh_public_key is not None:
+            data["target_user_attributes"]["ssh_public_key"] = ssh_public_key
+        if chat_sfx is not None:
+            data["target_user_attributes"]["chat_sfx"] = chat_sfx
+            
+        return await self._make_request("POST", "/api/public/update_user_attributes", data)
         
     # Synchronous wrapper methods for backward compatibility
     

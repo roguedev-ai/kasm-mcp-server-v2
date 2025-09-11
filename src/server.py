@@ -706,7 +706,11 @@ async def create_kasm_user(
     username: str,
     password: str,
     first_name: str = "",
-    last_name: str = ""
+    last_name: str = "",
+    organization: str = "",
+    phone: str = "",
+    locked: bool = False,
+    disabled: bool = False
 ) -> dict:
     """Create a new user account in the Kasm system.
     
@@ -715,6 +719,10 @@ async def create_kasm_user(
         password: Password for the new user
         first_name: User's first name (optional)
         last_name: User's last name (optional)
+        organization: User's organization (optional)
+        phone: User's phone number (optional)
+        locked: Whether to lock the account (default: False)
+        disabled: Whether to disable the account (default: False)
         
     Returns:
         User creation result
@@ -727,21 +735,207 @@ async def create_kasm_user(
             username=username,
             password=password,
             first_name=first_name,
-            last_name=last_name
+            last_name=last_name,
+            organization=organization,
+            phone=phone,
+            locked=locked,
+            disabled=disabled
         )
+        
+        # Extract user data from nested response
+        user_data = result.get("user", {})
         
         return {
             "success": True,
-            "user_id": result.get("user_id"),
-            "username": username,
+            "user_id": user_data.get("user_id"),
+            "username": user_data.get("username", username),
+            "groups": user_data.get("groups", []),
             "message": f"User '{username}' created successfully"
         }
         
     except Exception as e:
         logger.error(f"Failed to create user: {e}")
+        logger.error(f"Full error details: {traceback.format_exc()}")
         return {
             "success": False,
             "error": f"Failed to create user: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def get_kasm_user(
+    user_id: Optional[str] = None,
+    username: Optional[str] = None
+) -> dict:
+    """Get details for a specific user.
+    
+    Args:
+        user_id: User ID to retrieve (optional if username provided)
+        username: Username to retrieve (optional if user_id provided)
+        
+    Returns:
+        User details
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    if not user_id and not username:
+        return {"success": False, "error": "Either user_id or username must be provided"}
+    
+    try:
+        result = await kasm_client.get_user(
+            user_id=user_id,
+            username=username
+        )
+        
+        # Extract user data from nested response
+        user_data = result.get("user", {})
+        
+        return {
+            "success": True,
+            "user": user_data,
+            "message": "User details retrieved successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get user: {e}")
+        logger.error(f"Full error details: {traceback.format_exc()}")
+        return {
+            "success": False,
+            "error": f"Failed to get user: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def update_kasm_user(
+    user_id: str,
+    username: Optional[str] = None,
+    password: Optional[str] = None,
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
+    organization: Optional[str] = None,
+    phone: Optional[str] = None,
+    locked: Optional[bool] = None,
+    disabled: Optional[bool] = None
+) -> dict:
+    """Update an existing user's details.
+    
+    Args:
+        user_id: User ID to update
+        username: New username (optional)
+        password: New password (optional)
+        first_name: New first name (optional)
+        last_name: New last name (optional)
+        organization: New organization (optional)
+        phone: New phone number (optional)
+        locked: New locked status (optional)
+        disabled: New disabled status (optional)
+        
+    Returns:
+        Update result
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        result = await kasm_client.update_user(
+            user_id=user_id,
+            username=username,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            organization=organization,
+            phone=phone,
+            locked=locked,
+            disabled=disabled
+        )
+        
+        # Extract user data from nested response
+        user_data = result.get("user", {})
+        
+        return {
+            "success": True,
+            "user": user_data,
+            "message": "User updated successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to update user: {e}")
+        logger.error(f"Full error details: {traceback.format_exc()}")
+        return {
+            "success": False,
+            "error": f"Failed to update user: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def delete_kasm_user(
+    user_id: str,
+    force: bool = False
+) -> dict:
+    """Delete a user from the Kasm system.
+    
+    Args:
+        user_id: User ID to delete
+        force: Force deletion even if user has active sessions
+        
+    Returns:
+        Deletion result
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        result = await kasm_client.delete_user(
+            user_id=user_id,
+            force=force
+        )
+        
+        return {
+            "success": True,
+            "message": f"User {user_id} deleted successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to delete user: {e}")
+        logger.error(f"Full error details: {traceback.format_exc()}")
+        return {
+            "success": False,
+            "error": f"Failed to delete user: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def logout_kasm_user(
+    user_id: str
+) -> dict:
+    """Logout all sessions for a specific user.
+    
+    Args:
+        user_id: User ID to logout
+        
+    Returns:
+        Logout result
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        result = await kasm_client.logout_user(
+            user_id=user_id
+        )
+        
+        return {
+            "success": True,
+            "message": f"All sessions for user {user_id} have been logged out"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to logout user: {e}")
+        logger.error(f"Full error details: {traceback.format_exc()}")
+        return {
+            "success": False,
+            "error": f"Failed to logout user: {str(e)}"
         }
 
 
