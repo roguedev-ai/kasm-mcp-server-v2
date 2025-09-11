@@ -157,7 +157,9 @@ async def create_kasm_session(
     """Create a new Kasm session with the specified workspace image.
     
     Args:
-        image_name: Name of the workspace image to launch
+        image_name: Name or ID of the workspace image to launch
+            - Can be a Docker image name like "kasmweb/chrome:1.8.0"
+            - Can be an image ID (UUID) like "01366df3a03b4bccbb8c913846594826"
         group_id: Group ID for the session
         
     Returns:
@@ -169,6 +171,7 @@ async def create_kasm_session(
     try:
         user_id = os.getenv("KASM_USER_ID", "default")
         
+        # The client will automatically detect if it's an ID or name
         result = await kasm_client.request_kasm(
             image_name=image_name,
             user_id=user_id,
@@ -180,14 +183,23 @@ async def create_kasm_session(
             "kasm_id": result.get("kasm_id"),
             "session_url": result.get("kasm_url"),
             "status": result.get("status", "created"),
-            "image_name": image_name
+            "image_name": image_name,
+            "message": "Session created successfully"
         }
         
     except Exception as e:
         logger.error(f"Failed to create Kasm session: {e}")
+        error_msg = str(e)
+        
+        # Provide more helpful error messages
+        if "HTML response" in error_msg:
+            error_msg += " - The API endpoint may be incorrect or the server may be misconfigured"
+        elif "Invalid JSON" in error_msg:
+            error_msg += " - The API returned an unexpected format"
+            
         return {
             "success": False,
-            "error": f"Failed to create session: {str(e)}"
+            "error": f"Failed to create session: {error_msg}"
         }
 
 
@@ -936,6 +948,155 @@ async def logout_kasm_user(
         return {
             "success": False,
             "error": f"Failed to logout user: {str(e)}"
+        }
+
+
+# Performance Monitoring Tools
+@mcp.tool()
+async def get_session_frame_stats(
+    kasm_id: str,
+    client: str = "auto"
+) -> dict:
+    """Get frame rendering statistics for a Kasm session.
+    
+    Args:
+        kasm_id: ID of the Kasm session
+        client: Which client to retrieve stats for ('none', 'auto', 'all', or websocket_id)
+        
+    Returns:
+        Frame statistics including timing and performance metrics
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        user_id = os.getenv("KASM_USER_ID", "default")
+        
+        result = await kasm_client.get_kasm_frame_stats(
+            kasm_id=kasm_id,
+            user_id=user_id,
+            client=client
+        )
+        
+        return {
+            "success": True,
+            "kasm_id": kasm_id,
+            "frame": result.get("frame", {}),
+            "clients": result.get("clients", []),
+            "analysis_time": result.get("analysis"),
+            "encoding_time": result.get("encoding_total"),
+            "message": "Frame stats retrieved successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get frame stats: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to get frame stats: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def get_session_bottleneck_stats(
+    kasm_id: str
+) -> dict:
+    """Get CPU and network bottleneck statistics for a Kasm session.
+    
+    Args:
+        kasm_id: ID of the Kasm session
+        
+    Returns:
+        Bottleneck statistics showing CPU and network constraints
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        user_id = os.getenv("KASM_USER_ID", "default")
+        
+        result = await kasm_client.get_kasm_bottleneck_stats(
+            kasm_id=kasm_id,
+            user_id=user_id
+        )
+        
+        # Parse the bottleneck stats
+        stats = {}
+        for websocket_id, values in result.get("kasm_user", {}).items():
+            if isinstance(values, list) and len(values) >= 4:
+                stats[websocket_id] = {
+                    "cpu": values[0],
+                    "cpu_average": values[1],
+                    "network": values[2],
+                    "network_average": values[3],
+                    "description": "Values range from 0-10, lower means more constrained"
+                }
+        
+        return {
+            "success": True,
+            "kasm_id": kasm_id,
+            "bottleneck_stats": stats,
+            "message": "Bottleneck stats retrieved successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get bottleneck stats: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to get bottleneck stats: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def get_session_recordings(
+    kasm_id: str,
+    download_links: bool = False
+) -> dict:
+    """Get session recordings for a specific Kasm session.
+    
+    Args:
+        kasm_id: ID of the Kasm session
+        download_links: Whether to include pre-authorized download links
+        
+    Returns:
+        List of session recordings with metadata and optional download links
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        result = await kasm_client.get_session_recordings(
+            target_kasm_id=kasm_id,
+            preauth_download_link=download_links
+        )
+        
+        # Extract recording information
+        recordings = []
+        for recording in result.get("session_recordings", []):
+            rec_info = {
+                "recording_id": recording.get("recording_id"),
+                "account_id": recording.get("account_id"),
+                "url": recording.get("session_recording_url"),
+                "metadata": recording.get("session_recording_metadata", {})
+            }
+            
+            if download_links:
+                rec_info["download_url"] = recording.get("session_recording_download_url")
+            
+            recordings.append(rec_info)
+        
+        return {
+            "success": True,
+            "kasm_id": kasm_id,
+            "recordings": recordings,
+            "count": len(recordings),
+            "message": "Session recordings retrieved successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get session recordings: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to get session recordings: {str(e)}"
         }
 
 

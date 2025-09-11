@@ -79,10 +79,38 @@ class KasmAPIClient:
                 json=auth_data,
                 headers=headers
             ) as response:
-                response_data = await response.json()
+                # Check content type
+                content_type = response.headers.get('content-type', '')
+                
+                # Handle HTML responses (usually error pages)
+                if 'text/html' in content_type:
+                    html_content = await response.text()
+                    error_msg = f"Received HTML response instead of JSON (status {response.status})"
+                    
+                    # Try to extract meaningful error from HTML
+                    if 'error' in html_content.lower():
+                        # Simple extraction of error messages from HTML
+                        import re
+                        error_match = re.search(r'<title>(.*?)</title>', html_content, re.IGNORECASE)
+                        if error_match:
+                            error_msg += f": {error_match.group(1)}"
+                    
+                    logger.error(f"HTML response from {url}: {error_msg}")
+                    logger.debug(f"Full HTML response: {html_content[:500]}...")
+                    
+                    raise Exception(error_msg)
+                
+                # Parse JSON response
+                try:
+                    response_data = await response.json()
+                except json.JSONDecodeError as e:
+                    text_content = await response.text()
+                    logger.error(f"Failed to decode JSON from {url}: {e}")
+                    logger.debug(f"Response content: {text_content[:500]}...")
+                    raise Exception(f"Invalid JSON response from API: {e}")
                 
                 if response.status >= 400:
-                    error_msg = response_data.get("error", "Unknown error")
+                    error_msg = response_data.get("error", f"API error with status {response.status}")
                     raise Exception(f"Kasm API error: {error_msg}")
                     
                 return response_data
@@ -91,7 +119,8 @@ class KasmAPIClient:
             logger.error(f"HTTP error calling Kasm API: {e}")
             raise
         except Exception as e:
-            logger.error(f"Error calling Kasm API: {e}")
+            if not str(e).startswith(("Kasm API error", "Invalid JSON", "Received HTML")):
+                logger.error(f"Unexpected error calling Kasm API: {e}")
             raise
             
     # Session Management Methods
@@ -105,18 +134,30 @@ class KasmAPIClient:
         """Request a new Kasm session.
         
         Args:
-            image_name: Name of the workspace image
+            image_name: Name or ID of the workspace image
             user_id: User ID requesting the session
             group_id: Group ID for the session
             
         Returns:
             Session creation response
         """
+        import re
+        
+        # Detect if the input is a UUID (image_id) or a Docker image name
+        uuid_pattern = re.compile(r'^[a-f0-9]{32}$|^[a-f0-9]{8}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{12}$', re.IGNORECASE)
+        
         data = {
-            "image_name": image_name,
             "user_id": user_id,
             "group_id": group_id
         }
+        
+        # If it looks like a UUID, use image_id, otherwise use image_name
+        if uuid_pattern.match(image_name):
+            # Remove hyphens for consistency (Kasm expects 32-char hex string)
+            data["image_id"] = image_name.replace('-', '')
+        else:
+            # It's a Docker image name like "kasmweb/chrome:1.8.0"
+            data["image_name"] = image_name
         
         return await self._make_request("POST", "/api/public/request_kasm", data)
         
@@ -211,20 +252,33 @@ class KasmAPIClient:
         
         return await self._make_request("POST", "/api/public/resume_kasm", data)
     
-    async def get_kasm_screenshot(self, kasm_id: str, user_id: str) -> Dict[str, Any]:
+    async def get_kasm_screenshot(
+        self,
+        kasm_id: str,
+        user_id: str,
+        width: Optional[int] = None,
+        height: Optional[int] = None
+    ) -> Dict[str, Any]:
         """Get a screenshot of a Kasm session.
         
         Args:
             kasm_id: ID of the session
             user_id: User ID owning the session
+            width: Width of the screenshot (default: 300)
+            height: Height of the screenshot (auto-adjusted for aspect ratio)
             
         Returns:
-            Screenshot data (base64 encoded)
+            Screenshot data (JPEG image or base64 encoded)
         """
         data = {
             "kasm_id": kasm_id,
             "user_id": user_id
         }
+        
+        if width:
+            data["width"] = width
+        if height:
+            data["height"] = height
         
         return await self._make_request("POST", "/api/public/get_kasm_screenshot", data)
         
@@ -235,7 +289,10 @@ class KasmAPIClient:
         kasm_id: str,
         user_id: str,
         command: str,
-        working_dir: Optional[str] = None
+        working_dir: Optional[str] = None,
+        environment: Optional[Dict[str, str]] = None,
+        privileged: bool = False,
+        user: Optional[str] = None
     ) -> Dict[str, Any]:
         """Execute a command in a Kasm session.
         
@@ -244,19 +301,33 @@ class KasmAPIClient:
             user_id: User ID owning the session
             command: Command to execute
             working_dir: Working directory for command execution
+            environment: Environment variables for the command
+            privileged: Run command as privileged
+            user: User to run command as (e.g., 'root')
             
         Returns:
             Command execution result
         """
-        data = {
-            "kasm_id": kasm_id,
-            "user_id": user_id,
-            "command": command
+        # Build exec_config according to Kasm API spec
+        exec_config = {
+            "cmd": command
         }
         
         if working_dir:
-            data["working_dir"] = working_dir
+            exec_config["workdir"] = working_dir
+        if environment:
+            exec_config["environment"] = environment
+        if privileged:
+            exec_config["privileged"] = privileged
+        if user:
+            exec_config["user"] = user
             
+        data = {
+            "kasm_id": kasm_id,
+            "user_id": user_id,
+            "exec_config": exec_config
+        }
+        
         return await self._make_request("POST", "/api/public/exec_command_kasm", data)
         
     # Admin Methods
@@ -508,6 +579,74 @@ class KasmAPIClient:
             data["target_user_attributes"]["chat_sfx"] = chat_sfx
             
         return await self._make_request("POST", "/api/public/update_user_attributes", data)
+    
+    # Performance and Monitoring Methods
+    
+    async def get_kasm_frame_stats(
+        self,
+        kasm_id: str,
+        user_id: str,
+        client: str = "auto"
+    ) -> Dict[str, Any]:
+        """Get frame statistics for a Kasm session.
+        
+        Args:
+            kasm_id: ID of the session
+            user_id: User ID owning the session
+            client: Which client to retrieve stats for ('none', 'auto', 'all', or websocket_id)
+            
+        Returns:
+            Frame statistics including timing and performance metrics
+        """
+        data = {
+            "kasm_id": kasm_id,
+            "user_id": user_id,
+            "client": client
+        }
+        
+        return await self._make_request("POST", "/api/public/get_kasm_frame_stats", data)
+    
+    async def get_kasm_bottleneck_stats(
+        self,
+        kasm_id: str,
+        user_id: str
+    ) -> Dict[str, Any]:
+        """Get CPU and network bottleneck statistics for a Kasm session.
+        
+        Args:
+            kasm_id: ID of the session
+            user_id: User ID owning the session
+            
+        Returns:
+            Bottleneck statistics for CPU and network constraints
+        """
+        data = {
+            "kasm_id": kasm_id,
+            "user_id": user_id
+        }
+        
+        return await self._make_request("POST", "/api/public/get_kasm_bottleneck_stats", data)
+    
+    async def get_session_recordings(
+        self,
+        target_kasm_id: str,
+        preauth_download_link: bool = False
+    ) -> Dict[str, Any]:
+        """Get session recordings for a specific Kasm session.
+        
+        Args:
+            target_kasm_id: ID of the session to get recordings for
+            preauth_download_link: Whether to include pre-authorized download links
+            
+        Returns:
+            List of session recordings with metadata and optional download links
+        """
+        data = {
+            "target_kasm_id": target_kasm_id,
+            "preauth_download_link": preauth_download_link
+        }
+        
+        return await self._make_request("POST", "/api/public/get_session_recordings", data)
         
     # Synchronous wrapper methods for backward compatibility
     
