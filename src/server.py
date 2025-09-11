@@ -524,14 +524,14 @@ async def create_kasm_user(
         }
 
 
-async def main():
+def main():
     """Main entry point for the MCP server."""
     try:
         # Initialize clients
         initialize_clients()
         
-        # Run the FastMCP server
-        await mcp.run()
+        # Run the FastMCP server (it manages its own event loop)
+        mcp.run()
         
     except Exception as e:
         logger.error(f"Server error: {e}")
@@ -539,5 +539,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()
