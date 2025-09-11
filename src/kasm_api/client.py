@@ -146,20 +146,45 @@ class KasmAPIClient:
         # Detect if the input is a UUID (image_id) or a Docker image name
         uuid_pattern = re.compile(r'^[a-f0-9]{32}$|^[a-f0-9]{8}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{12}$', re.IGNORECASE)
         
+        # Ensure UUIDs maintain their format (with hyphens for user/group)
+        # but image_id should be without hyphens
         data = {
-            "user_id": user_id,
-            "group_id": group_id
+            "user_id": user_id,  # Keep original format (with hyphens)
+            "group_id": group_id  # Keep original format (with hyphens)
         }
         
-        # If it looks like a UUID, use image_id, otherwise use image_name
+        # If it looks like a UUID, try image_id first
         if uuid_pattern.match(image_name):
-            # Remove hyphens for consistency (Kasm expects 32-char hex string)
+            # Remove hyphens from image_id only
             data["image_id"] = image_name.replace('-', '')
+            
+            try:
+                # Try with image_id first
+                logger.debug(f"Attempting session creation with image_id: {data['image_id']}")
+                return await self._make_request("POST", "/api/public/request_kasm", data)
+            except Exception as e:
+                # If that fails, try with image_name as fallback
+                logger.warning(f"Failed with image_id, trying image_name: {e}")
+                del data["image_id"]
+                data["image_name"] = image_name
+                return await self._make_request("POST", "/api/public/request_kasm", data)
         else:
             # It's a Docker image name like "kasmweb/chrome:1.8.0"
             data["image_name"] = image_name
-        
-        return await self._make_request("POST", "/api/public/request_kasm", data)
+            
+            try:
+                # Try with image_name
+                logger.debug(f"Attempting session creation with image_name: {data['image_name']}")
+                return await self._make_request("POST", "/api/public/request_kasm", data)
+            except Exception as e:
+                # If the image name looks like it might be an ID without hyphens, try that
+                if re.match(r'^[a-f0-9]{32}$', image_name, re.IGNORECASE):
+                    logger.warning(f"Failed with image_name, trying as image_id: {e}")
+                    del data["image_name"]
+                    data["image_id"] = image_name
+                    return await self._make_request("POST", "/api/public/request_kasm", data)
+                else:
+                    raise
         
     async def destroy_kasm(self, kasm_id: str, user_id: str) -> Dict[str, Any]:
         """Destroy a Kasm session.

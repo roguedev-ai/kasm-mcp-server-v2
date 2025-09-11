@@ -80,6 +80,19 @@ def initialize_clients():
     api_key = os.getenv("KASM_API_KEY", "")
     api_secret = os.getenv("KASM_API_SECRET", "")
     
+    # Get user ID from environment - MUST be a valid UUID
+    user_id = os.getenv("KASM_USER_ID", "")
+    if user_id == "default" or not user_id:
+        logger.error("KASM_USER_ID environment variable is not set or is set to 'default'")
+        logger.error("Please set KASM_USER_ID to your actual Kasm user UUID (e.g., 7e74b81f-4486-469d-b3ad-d8604d78aa2c)")
+        raise ValueError("KASM_USER_ID must be set to a valid UUID, not 'default'")
+    
+    # Validate UUID format (with or without hyphens)
+    import re
+    uuid_pattern = re.compile(r'^[a-f0-9]{8}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{12}$', re.IGNORECASE)
+    if not uuid_pattern.match(user_id):
+        raise ValueError(f"KASM_USER_ID '{user_id}' is not a valid UUID format")
+    
     if not api_key or not api_secret:
         raise ValueError("KASM_API_KEY and KASM_API_SECRET must be set")
     
@@ -91,6 +104,7 @@ def initialize_clients():
     roots_validator = RootsValidator(allowed_roots)
     
     logger.info(f"Initialized Kasm API client for {api_url}")
+    logger.info(f"User ID: {user_id}")
     logger.info(f"Allowed roots: {allowed_roots}")
 
 
@@ -121,7 +135,7 @@ async def execute_kasm_command(
         # Execute command
         result = await kasm_client.exec_command(
             kasm_id=kasm_id,
-            user_id=os.getenv("KASM_USER_ID", "default"),
+            user_id=os.getenv("KASM_USER_ID"),  # No fallback - validated at startup
             command=command,
             working_dir=working_dir
         )
@@ -169,7 +183,7 @@ async def create_kasm_session(
         return {"success": False, "error": "Server not initialized"}
     
     try:
-        user_id = os.getenv("KASM_USER_ID", "default")
+        user_id = os.getenv("KASM_USER_ID")  # No fallback - validated at startup
         
         # The client will automatically detect if it's an ID or name
         result = await kasm_client.request_kasm(
@@ -217,7 +231,7 @@ async def destroy_kasm_session(kasm_id: str) -> dict:
         return {"success": False, "error": "Server not initialized"}
     
     try:
-        user_id = os.getenv("KASM_USER_ID", "default")
+        user_id = os.getenv("KASM_USER_ID")  # No fallback - validated at startup
         
         result = await kasm_client.destroy_kasm(
             kasm_id=kasm_id,
@@ -253,7 +267,7 @@ async def get_session_status(kasm_id: str) -> dict:
         return {"success": False, "error": "Server not initialized"}
     
     try:
-        user_id = os.getenv("KASM_USER_ID", "default")
+        user_id = os.getenv("KASM_USER_ID")  # No fallback - validated at startup
         
         result = await kasm_client.get_kasm_status(
             kasm_id=kasm_id,
@@ -289,7 +303,7 @@ async def list_user_sessions() -> dict:
         return {"success": False, "error": "Server not initialized"}
     
     try:
-        user_id = os.getenv("KASM_USER_ID", "default")
+        user_id = os.getenv("KASM_USER_ID")  # No fallback - validated at startup
         
         result = await kasm_client.get_user_kasms(user_id=user_id)
         
@@ -381,7 +395,7 @@ async def pause_kasm_session(kasm_id: str) -> dict:
         return {"success": False, "error": "Server not initialized"}
     
     try:
-        user_id = os.getenv("KASM_USER_ID", "default")
+        user_id = os.getenv("KASM_USER_ID")  # No fallback - validated at startup
         
         result = await kasm_client.pause_kasm(
             kasm_id=kasm_id,
@@ -417,7 +431,7 @@ async def resume_kasm_session(kasm_id: str) -> dict:
         return {"success": False, "error": "Server not initialized"}
     
     try:
-        user_id = os.getenv("KASM_USER_ID", "default")
+        user_id = os.getenv("KASM_USER_ID")  # No fallback - validated at startup
         
         result = await kasm_client.resume_kasm(
             kasm_id=kasm_id,
@@ -458,7 +472,7 @@ async def get_session_screenshot(
         return {"success": False, "error": "Server not initialized"}
     
     try:
-        user_id = os.getenv("KASM_USER_ID", "default")
+        user_id = os.getenv("KASM_USER_ID")  # No fallback - validated at startup
         
         result = await kasm_client.get_kasm_screenshot(
             kasm_id=kasm_id,
@@ -520,7 +534,7 @@ async def read_kasm_file(
         
         # Use cat command to read file
         command = f"cat '{file_path}'"
-        user_id = os.getenv("KASM_USER_ID", "default")
+        user_id = os.getenv("KASM_USER_ID")  # No fallback - validated at startup
         
         result = await kasm_client.exec_command(
             kasm_id=kasm_id,
@@ -589,7 +603,7 @@ async def write_kasm_file(
             f"echo '{encoded_content}' | base64 -d > '{file_path}'"
         ]
         
-        user_id = os.getenv("KASM_USER_ID", "default")
+        user_id = os.getenv("KASM_USER_ID")  # No fallback - validated at startup
         
         for command in commands:
             result = await kasm_client.exec_command(
@@ -970,7 +984,7 @@ async def get_session_frame_stats(
         return {"success": False, "error": "Server not initialized"}
     
     try:
-        user_id = os.getenv("KASM_USER_ID", "default")
+        user_id = os.getenv("KASM_USER_ID")  # No fallback - validated at startup
         
         result = await kasm_client.get_kasm_frame_stats(
             kasm_id=kasm_id,
@@ -1012,7 +1026,7 @@ async def get_session_bottleneck_stats(
         return {"success": False, "error": "Server not initialized"}
     
     try:
-        user_id = os.getenv("KASM_USER_ID", "default")
+        user_id = os.getenv("KASM_USER_ID")  # No fallback - validated at startup
         
         result = await kasm_client.get_kasm_bottleneck_stats(
             kasm_id=kasm_id,

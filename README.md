@@ -28,6 +28,7 @@ python -m src
 
 - **[Quick Start Guide](QUICK_START.md)** - Get up and running in 5 minutes
 - **[Installation Guide](INSTALLATION_GUIDE.md)** - Detailed installation instructions
+- **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Cline Integration Guide](CLINE_INTEGRATION_GUIDE.md)** - Configure Cline to use this MCP server
 - **[LLM Integration Guide](LLM_INTEGRATION_GUIDE.md)** - Integrate with any MCP-compatible LLM
 - **[Architecture Documentation](ARCHITECTURE.md)** - System design and components
