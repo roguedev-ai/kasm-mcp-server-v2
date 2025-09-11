@@ -62,7 +62,7 @@ class KasmAPIClient:
         # Prepare authentication
         auth_data = {
             "api_key": self.api_key,
-            "api_secret": self.api_secret
+            "api_key_secret": self.api_secret
         }
         
         if data:
