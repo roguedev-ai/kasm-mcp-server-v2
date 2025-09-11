@@ -153,6 +153,80 @@ class KasmAPIClient:
         }
         
         return await self._make_request("POST", "/api/public/get_kasm_status", data)
+    
+    async def get_user_kasms(self, user_id: str) -> Dict[str, Any]:
+        """Get list of active sessions for a user.
+        
+        Args:
+            user_id: User ID to get sessions for
+            
+        Returns:
+            List of user's active sessions
+        """
+        data = {
+            "user_id": user_id
+        }
+        
+        return await self._make_request("POST", "/api/public/get_user_kasms", data)
+    
+    async def get_kasms(self) -> Dict[str, Any]:
+        """Get list of all active sessions (admin).
+        
+        Returns:
+            List of all active sessions
+        """
+        return await self._make_request("POST", "/api/public/get_kasms")
+    
+    async def pause_kasm(self, kasm_id: str, user_id: str) -> Dict[str, Any]:
+        """Pause a Kasm session.
+        
+        Args:
+            kasm_id: ID of the session to pause
+            user_id: User ID owning the session
+            
+        Returns:
+            Pause response
+        """
+        data = {
+            "kasm_id": kasm_id,
+            "user_id": user_id
+        }
+        
+        return await self._make_request("POST", "/api/public/pause_kasm", data)
+    
+    async def resume_kasm(self, kasm_id: str, user_id: str) -> Dict[str, Any]:
+        """Resume a paused Kasm session.
+        
+        Args:
+            kasm_id: ID of the session to resume
+            user_id: User ID owning the session
+            
+        Returns:
+            Resume response
+        """
+        data = {
+            "kasm_id": kasm_id,
+            "user_id": user_id
+        }
+        
+        return await self._make_request("POST", "/api/public/resume_kasm", data)
+    
+    async def get_kasm_screenshot(self, kasm_id: str, user_id: str) -> Dict[str, Any]:
+        """Get a screenshot of a Kasm session.
+        
+        Args:
+            kasm_id: ID of the session
+            user_id: User ID owning the session
+            
+        Returns:
+            Screenshot data (base64 encoded)
+        """
+        data = {
+            "kasm_id": kasm_id,
+            "user_id": user_id
+        }
+        
+        return await self._make_request("POST", "/api/public/get_kasm_screenshot", data)
         
     # Command Execution
     
@@ -187,13 +261,13 @@ class KasmAPIClient:
         
     # Admin Methods
     
-    async def get_workspaces(self) -> Dict[str, Any]:
-        """Get list of available workspaces.
+    async def get_images(self) -> Dict[str, Any]:
+        """Get list of available workspace images.
         
         Returns:
-            List of workspace configurations
+            List of workspace image configurations
         """
-        return await self._make_request("GET", "/api/public/get_workspaces")
+        return await self._make_request("POST", "/api/public/get_images")
         
     async def get_users(self) -> Dict[str, Any]:
         """Get list of users.
@@ -258,10 +332,10 @@ class KasmAPIClient:
         import asyncio
         return asyncio.run(self.exec_command(kasm_id, user_id, command, working_dir))
         
-    def get_workspaces_sync(self) -> Dict[str, Any]:
-        """Synchronous wrapper for get_workspaces."""
+    def get_images_sync(self) -> Dict[str, Any]:
+        """Synchronous wrapper for get_images."""
         import asyncio
-        return asyncio.run(self.get_workspaces())
+        return asyncio.run(self.get_images())
         
     def get_users_sync(self) -> Dict[str, Any]:
         """Synchronous wrapper for get_users."""

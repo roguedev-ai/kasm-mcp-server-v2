@@ -266,6 +266,224 @@ async def get_session_status(kasm_id: str) -> dict:
         }
 
 
+@mcp.tool()
+async def list_user_sessions() -> dict:
+    """List all active sessions for the current user.
+    
+    Returns:
+        List of user's active sessions
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        user_id = os.getenv("KASM_USER_ID", "default")
+        
+        result = await kasm_client.get_user_kasms(user_id=user_id)
+        
+        # Extract relevant session information
+        sessions = []
+        for session in result.get("kasms", []):
+            sessions.append({
+                "kasm_id": session.get("kasm_id"),
+                "image_name": session.get("image_name"),
+                "friendly_name": session.get("image_friendly_name"),
+                "status": session.get("status"),
+                "operational_status": session.get("operational_status"),
+                "session_url": session.get("kasm_url"),
+                "created_time": session.get("created_time"),
+                "last_activity": session.get("last_activity"),
+                "is_paused": session.get("is_paused", False)
+            })
+        
+        return {
+            "success": True,
+            "sessions": sessions,
+            "count": len(sessions)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to list user sessions: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to list user sessions: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def list_all_sessions() -> dict:
+    """List all active sessions in the system (admin).
+    
+    Returns:
+        List of all active sessions
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        result = await kasm_client.get_kasms()
+        
+        # Extract relevant session information
+        sessions = []
+        for session in result.get("kasms", []):
+            sessions.append({
+                "kasm_id": session.get("kasm_id"),
+                "user_id": session.get("user_id"),
+                "username": session.get("username"),
+                "image_name": session.get("image_name"),
+                "friendly_name": session.get("image_friendly_name"),
+                "status": session.get("status"),
+                "operational_status": session.get("operational_status"),
+                "session_url": session.get("kasm_url"),
+                "created_time": session.get("created_time"),
+                "last_activity": session.get("last_activity"),
+                "is_paused": session.get("is_paused", False),
+                "client_ip": session.get("client_ip")
+            })
+        
+        return {
+            "success": True,
+            "sessions": sessions,
+            "count": len(sessions)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to list all sessions: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to list all sessions: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def pause_kasm_session(kasm_id: str) -> dict:
+    """Pause a running Kasm session to free up resources.
+    
+    Args:
+        kasm_id: ID of the Kasm session to pause
+        
+    Returns:
+        Pause operation result
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        user_id = os.getenv("KASM_USER_ID", "default")
+        
+        result = await kasm_client.pause_kasm(
+            kasm_id=kasm_id,
+            user_id=user_id
+        )
+        
+        return {
+            "success": True,
+            "kasm_id": kasm_id,
+            "status": "paused",
+            "message": "Session paused successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to pause session: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to pause session: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def resume_kasm_session(kasm_id: str) -> dict:
+    """Resume a paused Kasm session.
+    
+    Args:
+        kasm_id: ID of the Kasm session to resume
+        
+    Returns:
+        Resume operation result
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        user_id = os.getenv("KASM_USER_ID", "default")
+        
+        result = await kasm_client.resume_kasm(
+            kasm_id=kasm_id,
+            user_id=user_id
+        )
+        
+        return {
+            "success": True,
+            "kasm_id": kasm_id,
+            "status": "running",
+            "message": "Session resumed successfully",
+            "session_url": result.get("kasm_url")
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to resume session: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to resume session: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def get_session_screenshot(
+    kasm_id: str,
+    save_to_file: Optional[str] = None
+) -> dict:
+    """Get a screenshot of a Kasm session.
+    
+    Args:
+        kasm_id: ID of the Kasm session
+        save_to_file: Optional path to save the screenshot
+        
+    Returns:
+        Screenshot data or file path
+    """
+    if not kasm_client:
+        return {"success": False, "error": "Server not initialized"}
+    
+    try:
+        user_id = os.getenv("KASM_USER_ID", "default")
+        
+        result = await kasm_client.get_kasm_screenshot(
+            kasm_id=kasm_id,
+            user_id=user_id
+        )
+        
+        screenshot_data = result.get("screenshot", "")
+        
+        if save_to_file and screenshot_data:
+            # Save screenshot to file if path provided
+            import base64
+            with open(save_to_file, "wb") as f:
+                f.write(base64.b64decode(screenshot_data))
+            
+            return {
+                "success": True,
+                "kasm_id": kasm_id,
+                "file_path": save_to_file,
+                "message": f"Screenshot saved to {save_to_file}"
+            }
+        else:
+            return {
+                "success": True,
+                "kasm_id": kasm_id,
+                "screenshot_data": screenshot_data,
+                "format": "base64",
+                "message": "Screenshot captured successfully"
+            }
+        
+    except Exception as e:
+        logger.error(f"Failed to get screenshot: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to get screenshot: {str(e)}"
+        }
+
+
 # File Operation Tools
 @mcp.tool()
 async def read_kasm_file(
@@ -408,20 +626,23 @@ async def get_available_workspaces() -> dict:
         return {"success": False, "error": "Server not initialized"}
     
     try:
-        result = await kasm_client.get_workspaces()
+        result = await kasm_client.get_images()
         
-        # Extract relevant workspace information
+        # Extract relevant workspace information from images response
         workspaces = []
-        for workspace in result.get("workspaces", []):
+        for image in result.get("images", []):
             workspaces.append({
-                "image_name": workspace.get("image_name"),
-                "friendly_name": workspace.get("friendly_name"),
-                "description": workspace.get("description"),
-                "enabled": workspace.get("enabled"),
-                "cores": workspace.get("cores"),
-                "memory": workspace.get("memory"),
-                "gpu_count": workspace.get("gpu_count", 0),
-                "categories": workspace.get("categories", [])
+                "image_id": image.get("image_id"),
+                "image_name": image.get("name", image.get("image_name")),
+                "friendly_name": image.get("friendly_name"),
+                "description": image.get("description"),
+                "enabled": image.get("enabled", True),
+                "cores": image.get("cores"),
+                "memory": image.get("memory"),
+                "gpu_count": image.get("gpu_count", 0),
+                "categories": image.get("categories", []),
+                "docker_registry": image.get("docker_registry"),
+                "docker_image": image.get("docker_image")
             })
         
         return {
