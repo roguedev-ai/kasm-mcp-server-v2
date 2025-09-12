@@ -129,7 +129,7 @@ response = json.loads(process.stdout.readline())
   "mcpServers": {
     "kasm": {
       "command": "python",
-      "args": ["/home/user/kasm-mcp-server/src/server.py"],
+      "args": ["/home/user/kasm-mcp-server-v2/src/server.py"],
       "env": {
         "KASM_API_URL": "https://kasm.example.com",
         "KASM_API_KEY": "your_key",
@@ -154,7 +154,7 @@ response = json.loads(process.stdout.readline())
     {
       "name": "kasm",
       "command": "python",
-      "args": ["~/kasm-mcp-server/src/server.py"],
+      "args": ["~/kasm-mcp-server-v2/src/server.py"],
       "env": {
         "KASM_API_URL": "https://kasm.example.com",
         "KASM_API_KEY": "key",
@@ -845,6 +845,6 @@ class AuditedMCPClient(CustomMCPClient):
 ## Support
 
 For integration assistance:
-- **GitHub Issues**: [https://github.com/roguedev-ai/kasm-mcp-server/issues](https://github.com/roguedev-ai/kasm-mcp-server/issues)
-- **Discussions**: [https://github.com/roguedev-ai/kasm-mcp-server/discussions](https://github.com/roguedev-ai/kasm-mcp-server/discussions)
-- **Examples**: [https://github.com/roguedev-ai/kasm-mcp-server/tree/main/examples](https://github.com/roguedev-ai/kasm-mcp-server/tree/main/examples)
+- **GitHub Issues**: [https://github.com/roguedev-ai/kasm-mcp-server-v2/issues](https://github.com/roguedev-ai/kasm-mcp-server-v2/issues)
+- **Discussions**: [https://github.com/roguedev-ai/kasm-mcp-server-v2/discussions](https://github.com/roguedev-ai/kasm-mcp-server-v2/discussions)
+- **Examples**: [https://github.com/roguedev-ai/kasm-mcp-server-v2/tree/main/examples](https://github.com/roguedev-ai/kasm-mcp-server-v2/tree/main/examples)

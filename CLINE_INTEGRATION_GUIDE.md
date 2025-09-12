@@ -52,8 +52,8 @@ code --list-extensions | grep cline
 
 ```bash
 # Quick installation
-git clone https://github.com/roguedev-ai/kasm-mcp-server.git
-cd kasm-mcp-server
+git clone https://github.com/roguedev-ai/kasm-mcp-server-v2.git
+cd kasm-mcp-server-v2
 ./setup-prerequisites.sh --mode python
 ```
 
@@ -67,7 +67,7 @@ Open VS Code settings (`Ctrl+,` or `Cmd+,`) and add:
     "kasm-mcp-server": {
       "command": "python",
       "args": [
-        "/home/user/kasm-mcp-server/src/server.py"
+        "/home/user/kasm-mcp-server-v2/src/server.py"
       ],
       "env": {
         "KASM_API_URL": "https://your-kasm-server.com",
@@ -93,8 +93,8 @@ Choose your preferred installation method:
 
 ```bash
 # Clone repository
-git clone https://github.com/roguedev-ai/kasm-mcp-server.git
-cd kasm-mcp-server
+git clone https://github.com/roguedev-ai/kasm-mcp-server-v2.git
+cd kasm-mcp-server-v2
 
 # Create virtual environment
 python3 -m venv venv
@@ -131,7 +131,7 @@ Create or update your Cline configuration file:
     "kasm-mcp-server": {
       "command": "python",
       "args": [
-        "${env:HOME}/kasm-mcp-server/src/server.py"
+        "${env:HOME}/kasm-mcp-server-v2/src/server.py"
       ],
       "env": {
         "KASM_API_URL": "https://kasm.example.com",
@@ -320,7 +320,7 @@ Configure file system access restrictions:
 **Solutions**:
 ```bash
 # Check if server runs standalone
-python ~/kasm-mcp-server/src/server.py
+python ~/kasm-mcp-server-v2/src/server.py
 
 # Check Python path
 which python
@@ -370,12 +370,12 @@ curl -X POST https://your-kasm-server.com/api/public/get_kasm_status \
 **Solutions**:
 ```json
 // Use forward slashes or escaped backslashes
-"args": ["C:/Users/user/kasm-mcp-server/src/server.py"]
+"args": ["C:/Users/user/kasm-mcp-server-v2/src/server.py"]
 // OR
-"args": ["C:\\Users\\user\\kasm-mcp-server\\src\\server.py"]
+"args": ["C:\\Users\\user\\kasm-mcp-server-v2\\src\\server.py"]
 
 // Use environment variables
-"args": ["${env:USERPROFILE}/kasm-mcp-server/src/server.py"]
+"args": ["${env:USERPROFILE}/kasm-mcp-server-v2/src/server.py"]
 ```
 
 ### Debug Mode
@@ -496,6 +496,6 @@ export KASM_API_SECRET=$(pass show kasm/api_secret)
 
 ## Support
 
-- **Documentation**: [GitHub Wiki](https://github.com/roguedev-ai/kasm-mcp-server/wiki)
-- **Issues**: [GitHub Issues](https://github.com/roguedev-ai/kasm-mcp-server/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/roguedev-ai/kasm-mcp-server/discussions)
+- **Documentation**: [GitHub Wiki](https://github.com/roguedev-ai/kasm-mcp-server-v2/wiki)
+- **Issues**: [GitHub Issues](https://github.com/roguedev-ai/kasm-mcp-server-v2/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/roguedev-ai/kasm-mcp-server-v2/discussions)

@@ -40,8 +40,8 @@ The easiest way to install is using our automated setup script:
 
 ```bash
 # Download the repository
-git clone https://github.com/roguedev-ai/kasm-mcp-server.git
-cd kasm-mcp-server
+git clone https://github.com/roguedev-ai/kasm-mcp-server-v2.git
+cd kasm-mcp-server-v2
 
 # Run the setup script
 chmod +x setup-prerequisites.sh
@@ -61,8 +61,8 @@ For direct Python installation:
 
 ```bash
 # Clone the repository
-git clone https://github.com/roguedev-ai/kasm-mcp-server.git
-cd kasm-mcp-server
+git clone https://github.com/roguedev-ai/kasm-mcp-server-v2.git
+cd kasm-mcp-server-v2
 
 # Create virtual environment
 python3 -m venv venv
@@ -98,8 +98,8 @@ For containerized deployment:
 
 ```bash
 # Clone the repository
-git clone https://github.com/roguedev-ai/kasm-mcp-server.git
-cd kasm-mcp-server
+git clone https://github.com/roguedev-ai/kasm-mcp-server-v2.git
+cd kasm-mcp-server-v2
 
 # Build the Docker image
 docker build -t kasm-mcp-server:latest .
@@ -141,8 +141,8 @@ mkdir -p ~/mcp-servers
 cd ~/mcp-servers
 
 # Clone the repository
-git clone https://github.com/roguedev-ai/kasm-mcp-server.git
-cd kasm-mcp-server
+git clone https://github.com/roguedev-ai/kasm-mcp-server-v2.git
+cd kasm-mcp-server-v2
 ```
 
 ### Step 3: Run Setup Script
@@ -318,7 +318,7 @@ python src/server.py 2>&1 | tee debug.log
 
 ```bash
 # Navigate to installation directory
-cd ~/mcp-servers/kasm-mcp-server
+cd ~/mcp-servers/kasm-mcp-server-v2
 
 # Pull latest changes
 git pull origin main
@@ -368,7 +368,7 @@ docker rmi kasm-mcp-server:latest
 npm uninstall -g kasm-mcp-server
 
 # Remove installation directory
-rm -rf ~/mcp-servers/kasm-mcp-server
+rm -rf ~/mcp-servers/kasm-mcp-server-v2
 
 # Remove virtual environment (if created separately)
 rm -rf ~/mcp-venv
@@ -399,5 +399,5 @@ cp ~/.env.kasm-mcp-backup .env
 ## Support
 
 For issues or questions:
-- GitHub Issues: [https://github.com/roguedev-ai/kasm-mcp-server/issues](https://github.com/roguedev-ai/kasm-mcp-server/issues)
-- Documentation: [https://github.com/roguedev-ai/kasm-mcp-server/wiki](https://github.com/roguedev-ai/kasm-mcp-server/wiki)
+- GitHub Issues: [https://github.com/roguedev-ai/kasm-mcp-server-v2/issues](https://github.com/roguedev-ai/kasm-mcp-server-v2/issues)
+- Documentation: [https://github.com/roguedev-ai/kasm-mcp-server-v2/wiki](https://github.com/roguedev-ai/kasm-mcp-server-v2/wiki)
